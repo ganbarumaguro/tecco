@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>tecco</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#FAF7F4;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;}
+  input,select,textarea,button{font-family:inherit;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-thumb{background:#EDE5DF;border-radius:2px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+// ── デザイントークン ──
+const C = {
+  coral:"#E8856A", coralLight:"#F2A48E", coralPale:"#FCEAE4", coralBg:"#FDF6F3",
+  white:"#FFFFFF", beige:"#F7F2EE", beigeLight:"#FAF7F4", border:"#EDE5DF",
+  text:"#3D2E28", textSub:"#8C7B74", textMuted:"#B5A8A2",
+  purple:"#7C6FF7", purplePale:"#EDEBFE",
+  green:"#5CB98A", greenPale:"#E8F7EF",
+  red:"#E05252", redPale:"#FEECEC",
+};
+
+// ── 定数 ──
+const AREAS        = ["県央","県北","県南","沿岸","県外"];
+const FILTER_AREAS = ["全域",...AREAS];
+const AGE_GROUPS   = ["全員","妊婦","0〜6ヶ月","6〜12ヶ月","1〜2歳","3〜6歳（園児期）","小学校低学年","小学校高学年","中学生","高校生"];
+const CHILD_AGES   = ["妊娠中","0〜6ヶ月","6〜12ヶ月","1〜2歳","3〜6歳","小学校低学年","小学校高学年","中学生","高校生"];
+const AVATARS      = ["🌸","🌻","🍀","🐟","🌺","🌷","🦋","🐣","🌼","🍓","🐨","🌙"];
+const BOARD_CATS   = ["すべて","育児相談","発達・障害","不妊治療","闘病","夫婦","家族問題"];
+const BOARD_ICONS  = {"育児相談":"💬","発達・障害":"🌈","不妊治療":"🌷","闘病":"🕊️","夫婦":"💑","家族問題":"🏠"};
+const ADMIN_ID     = "admin";
+const AGE_MAP = {
+  "妊婦":["妊娠中","妊娠"],
+  "0〜6ヶ月":["0〜6ヶ月","0ヶ月","1ヶ月","2ヶ月","3ヶ月","4ヶ月","5ヶ月","6ヶ月"],
+  "6〜12ヶ月":["6〜12ヶ月","7ヶ月","8ヶ月","9ヶ月","10ヶ月","11ヶ月","12ヶ月"],
+  "1〜2歳":["1〜2歳","1歳","2歳"],
+  "3〜6歳（園児期）":["3〜6歳","3歳","4歳","5歳","6歳"],
+  "小学校低学年":["小学校低学年","小1","小2","小3"],
+  "小学校高学年":["小学校高学年","小4","小5","小6"],
+  "中学生":["中学生","中1","中2","中3"],
+  "高校生":["高校生","高1","高2","高3"],
+};
+const SC_COLOR = {all:C.green, wall:C.coral, followers:C.purple};
+const SC_SHORT = {all:"🌍 全員", wall:"🪞 壁打ち", followers:"👥 フォロワー"};
+const SC_LONG  = {all:"🌍 全員に公開", wall:"🪞 壁打ち（自分のみ）", followers:"👥 フォロワーのみ"};
+const SC_DESC  = {all:"すべてのユーザーに表示", wall:"自分だけが見られる日記", followers:"フォロワーだけに表示"};
+
+// ── サンプルデータ ──
+const INIT_POSTS = [
+  {id:1,user:"もりおかまま",userId:"morioka_mama",area:"県央",avatar:"🌸",childAges:["0〜6ヶ月"],
+   content:"夜泣きが続いて限界です😭 3ヶ月になったら楽になるって聞いてたのに…同じ月齢のママさんいますか？",
+   time:"2分前",likes:12,dislikes:0,scope:"all",tags:["夜泣き","3ヶ月"],
+   comments:[{id:101,user:"はなまきん",userId:"hanamaki_n",avatar:"🌻",text:"うちも3ヶ月のとき同じでした！もう少しで楽になりますよ🌸",time:"1分前"}]},
+  {id:2,user:"はなまきん",userId:"hanamaki_n",area:"県南",avatar:"🌻",childAges:["6〜12ヶ月"],
+   content:"離乳食中期スタートしました！花巻で離乳食教室やってるとこ知ってる方いませんか？",
+   time:"15分前",likes:8,dislikes:0,scope:"all",tags:["離乳食","花巻"],comments:[]},
+  {id:3,user:"いちのへまま",userId:"ichinohe_m",area:"県北",avatar:"🍀",childAges:["1〜2歳"],
+   content:"イヤイヤ期突入…ごはんも着替えも全部「いや！」。田舎だから支援センターもなくて孤独だな〜😮‍💨",
+   time:"32分前",likes:24,dislikes:0,scope:"wall",tags:["イヤイヤ期","田舎育児"],
+   comments:[{id:201,user:"みやこまま",userId:"miyako_mama",avatar:"🐟",text:"わかりすぎます…オンラインでよければ話しましょ！",time:"20分前"}]},
+  {id:4,user:"みやこまま",userId:"miyako_mama",area:"沿岸",avatar:"🐟",childAges:["0〜6ヶ月"],
+   content:"おすすめの育児スポットはどこですか？宮古周辺で穴場があれば教えてほしいです🌊",
+   time:"1時間前",likes:41,dislikes:0,scope:"all",tags:["宮古","授乳"],comments:[]},
+  {id:5,user:"きたかみん",userId:"kitakami_n",area:"県南",avatar:"🌺",childAges:["妊娠中"],
+   content:"もうすぐ出産！teccoで産後も繋がれるといいな🤰 同じ時期のプレママさん教えてください〜",
+   time:"2時間前",likes:17,dislikes:0,scope:"all",tags:["妊婦","プレママ"],comments:[]},
+];
+const INIT_BOARDS = [
+  {id:1,category:"育児相談",content:"1歳半健診で要観察になりました。同じ経験のある方、その後どうでしたか？",time:"30分前",
+   comments:[{id:301,text:"うちも同じでした。半年後の再健診で問題なしでしたよ。",time:"15分前"}]},
+  {id:2,category:"不妊治療",content:"2人目不妊で治療中です。岩手で評判いいクリニック教えてください",time:"3時間前",comments:[]},
+  {id:3,category:"発達・障害",content:"特別支援学校と普通学級どちらにするか悩んでいます。盛岡近辺で相談できるところありますか",time:"昨日",
+   comments:[{id:401,text:"盛岡市内に相談窓口があります。市の教育委員会に問い合わせると案内してもらえました。",time:"23時間前"}]},
+  {id:4,category:"夫婦",content:"育児中の夫婦のコミュニケーション、みなさんどうしてますか？喧嘩が増えて悩んでいます。",time:"2日前",comments:[]},
+];
+const INIT_USERS = [
+  {userId:"morioka_mama",user:"もりおかまま",avatar:"🌸",area:"県央",bio:"はると（3ヶ月）のママ🌱"},
+  {userId:"hanamaki_n",  user:"はなまきん",  avatar:"🌻",area:"県南",bio:"花巻在住、8ヶ月の女の子のまま"},
+  {userId:"ichinohe_m",  user:"いちのへまま",avatar:"🍀",area:"県北",bio:"県北でひとりでがんばってます"},
+  {userId:"miyako_mama", user:"みやこまま",  avatar:"🐟",area:"沿岸",bio:"宮古の海が好き🌊"},
+  {userId:"kitakami_n",  user:"きたかみん",  avatar:"🌺",area:"県南",bio:"プレママです！よろしくお願いします"},
+];
+
+// ── スタイル ──
+const s = {
+  authRoot:{minHeight:"100vh",background:C.coralBg,display:"flex",alignItems:"center",justifyContent:"center"},
+  authInner:{width:"100%",maxWidth:400,padding:"0 20px",boxSizing:"border-box"},
+  authHero:{textAlign:"center",paddingTop:48,paddingBottom:32},
+  authTagline:{fontSize:12,color:C.textMuted,letterSpacing:"0.05em",marginBottom:12},
+  authLogoText:{fontWeight:900,fontSize:42,color:C.coral,letterSpacing:"2px",lineHeight:1},
+  authSubtitle:{fontSize:13,color:C.textSub,marginTop:10},
+  authCard:{background:C.white,borderRadius:20,padding:"28px 24px 32px",boxShadow:"0 2px 24px rgba(180,100,70,0.10)"},
+  authCardTitle:{fontSize:17,fontWeight:800,color:C.coral,textAlign:"center",marginBottom:18},
+  authLabel:{fontSize:12,fontWeight:700,color:C.textSub,marginBottom:4},
+  authInput:{display:"block",width:"100%",padding:"11px 14px",borderRadius:10,border:`1.5px solid ${C.border}`,fontSize:14,outline:"none",background:C.white,marginBottom:12,boxSizing:"border-box",color:C.text},
+  authBtn:{display:"block",width:"100%",padding:"13px",background:C.coral,color:C.white,border:"none",borderRadius:12,fontSize:15,fontWeight:800,cursor:"pointer",marginBottom:10},
+  authBtnSub:{display:"block",width:"100%",padding:"12px",background:C.white,color:C.coral,border:`1.5px solid ${C.coral}`,borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:10},
+  authLink:{display:"block",textAlign:"center",fontSize:13,color:C.textSub,marginTop:8,cursor:"pointer",textDecoration:"underline"},
+  authError:{background:C.redPale,border:`1px solid ${C.red}44`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.red,marginBottom:10},
+  authNote:{textAlign:"center",fontSize:11,color:C.textMuted,marginTop:12},
+  root:{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:C.beigeLight,paddingBottom:80},
+  header:{background:C.coral,padding:"13px 16px",position:"sticky",top:0,zIndex:100,boxShadow:`0 1px 8px rgba(180,100,70,0.18)`},
+  headerInner:{display:"flex",alignItems:"center",justifyContent:"space-between"},
+  headerTitle:{color:C.white,fontWeight:900,fontSize:22,letterSpacing:"2px"},
+  headerRight:{display:"flex",gap:8,alignItems:"center"},
+  adminBadge:{background:"rgba(255,255,255,0.22)",color:C.white,fontSize:11,fontWeight:700,borderRadius:8,padding:"3px 8px"},
+  backBtn:{background:"none",border:"none",color:C.white,fontSize:15,fontWeight:700,cursor:"pointer",padding:0},
+  tabNav:{display:"flex",background:C.white,borderBottom:`1.5px solid ${C.border}`,position:"sticky",top:54,zIndex:90,overflowX:"auto"},
+  tabBtn:{flex:1,minWidth:68,padding:"11px 4px",border:"none",background:"none",fontSize:12,fontWeight:600,color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"},
+  tabActive:{color:C.coral,borderBottom:`2px solid ${C.coral}`,marginBottom:-2},
+  filterBar:{padding:"10px 16px",background:C.white,borderBottom:`1px solid ${C.border}`},
+  hint:{fontSize:11,color:C.textMuted,marginTop:4},
+  select:{width:"100%",padding:"9px 12px",borderRadius:10,border:`1.5px solid ${C.border}`,background:C.coralPale,fontSize:14,color:C.text,outline:"none"},
+  main:{padding:"14px 12px 24px"},
+  emptyMsg:{textAlign:"center",color:C.textMuted,padding:"48px 0",fontSize:14},
+  tagBanner:{background:C.greenPale,borderBottom:`1px solid ${C.green}44`,padding:"8px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,color:C.green,fontWeight:600},
+  tagBannerBtn:{background:"none",border:"none",color:C.green,fontWeight:700,cursor:"pointer",fontSize:13},
+  card:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 1px 6px rgba(0,0,0,0.05)",border:`1px solid ${C.border}`,position:"relative"},
+  cardTop:{display:"flex",gap:10,marginBottom:8},
+  avatarBtn:{background:"none",border:"none",padding:0,cursor:"pointer",flexShrink:0},
+  avatarCircle:{width:42,height:42,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`2px solid ${C.coralLight}`},
+  cardMeta:{flex:1,minWidth:0},
+  nameRow:{display:"flex",alignItems:"baseline",gap:6,flexWrap:"wrap"},
+  userNameBtn:{background:"none",border:"none",fontWeight:700,fontSize:14,color:C.text,cursor:"pointer",padding:0},
+  userIdText:{fontSize:12,color:C.textMuted},
+  subMeta:{display:"flex",gap:6,marginTop:3,flexWrap:"wrap"},
+  areaTag:{fontSize:11,color:C.textSub,background:C.beige,borderRadius:6,padding:"1px 7px"},
+  ageTag:{fontSize:11,color:C.coral,background:C.coralPale,borderRadius:6,padding:"1px 7px"},
+  timeText:{fontSize:11,color:C.textMuted},
+  scopeBadge:{fontSize:10,borderRadius:6,padding:"2px 7px",fontWeight:600,whiteSpace:"nowrap"},
+  content:{fontSize:14,color:C.text,lineHeight:1.7,margin:"0 0 10px"},
+  tagRow:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10},
+  tagBtn:{background:"none",border:"none",fontSize:12,color:C.purple,fontWeight:700,cursor:"pointer",padding:0},
+  actions:{display:"flex",gap:2,alignItems:"center",borderTop:`1px solid ${C.border}`,paddingTop:8,marginTop:2},
+  actionBtn:{background:"none",border:"none",fontSize:13,color:C.textSub,padding:"4px 8px",borderRadius:8,cursor:"pointer",fontWeight:600},
+  menuBtn:{background:"none",border:"none",fontSize:12,color:C.textMuted,padding:"4px 8px",borderRadius:8,cursor:"pointer",marginLeft:"auto"},
+  inlineMenu:{position:"absolute",right:12,top:56,background:C.white,borderRadius:12,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",border:`1px solid ${C.border}`,zIndex:50,minWidth:150,overflow:"hidden"},
+  menuItem:{display:"block",width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:13,cursor:"pointer",color:C.text},
+  menuItemDanger:{display:"block",width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:13,cursor:"pointer",color:C.red},
+  commentSection:{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10},
+  commentRow:{display:"flex",gap:8,marginBottom:10},
+  commentAvatar:{width:28,height:28,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,border:`1.5px solid ${C.coralLight}`},
+  commentNameRow:{display:"flex",gap:6,alignItems:"baseline"},
+  commentUser:{fontWeight:700,fontSize:12,color:C.text},
+  commentUserId:{fontSize:11,color:C.textMuted},
+  commentText:{fontSize:13,color:C.text,lineHeight:1.55,marginTop:2},
+  commentTime:{fontSize:11,color:C.textMuted,marginTop:2},
+  commentDeleteBtn:{background:"none",border:"none",fontSize:11,color:C.red,cursor:"pointer",padding:"0 4px",marginLeft:4},
+  anonRow:{display:"flex",gap:8,marginBottom:10,alignItems:"flex-start"},
+  commentInputRow:{display:"flex",gap:8,marginTop:8},
+  commentInput:{flex:1,padding:"8px 13px",borderRadius:20,border:`1.5px solid ${C.border}`,fontSize:13,outline:"none",background:C.beigeLight},
+  commentSendBtn:{padding:"8px 16px",borderRadius:20,background:C.coral,border:"none",fontSize:12,fontWeight:700,color:C.white,cursor:"pointer"},
+  fab:{position:"fixed",bottom:24,right:20,height:52,borderRadius:26,background:C.coral,border:"none",fontSize:14,fontWeight:800,boxShadow:`0 4px 16px ${C.coral}66`,cursor:"pointer",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",color:C.white,gap:8,padding:"0 22px"},
+  overlayBg:{position:"fixed",inset:0,background:"rgba(50,30,20,0.40)",zIndex:300,display:"flex",alignItems:"flex-end"},
+  modalSheet:{width:"100%",maxWidth:480,margin:"0 auto",background:C.white,borderRadius:"20px 20px 0 0",paddingBottom:8},
+  modalHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 16px 12px",borderBottom:`1px solid ${C.border}`},
+  modalTitle:{fontWeight:800,fontSize:16,color:C.text},
+  closeBtn:{background:"none",border:"none",fontSize:18,cursor:"pointer",color:C.textMuted,padding:4},
+  postBtn:{background:C.coral,color:C.white,border:"none",borderRadius:20,padding:"8px 22px",fontWeight:800,fontSize:14,cursor:"pointer"},
+  composeUser:{display:"flex",gap:10,alignItems:"center",padding:"12px 16px 4px"},
+  composeAvatar:{width:40,height:40,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,border:`2px solid ${C.coralLight}`},
+  composeUserName:{fontWeight:700,fontSize:14,color:C.text},
+  composeUserSub:{fontSize:12,color:C.textMuted},
+  textarea:{display:"block",width:"100%",border:"none",padding:"12px 16px",fontSize:15,resize:"none",outline:"none",fontFamily:"inherit",lineHeight:1.7,boxSizing:"border-box",background:C.white,color:C.text},
+  divider:{height:1,background:C.border,margin:"6px 0"},
+  sectionPad:{padding:"10px 16px 6px"},
+  subLabel:{fontSize:12,fontWeight:700,color:C.textMuted,marginBottom:8},
+  scopeCards:{display:"flex",gap:6},
+  scopeCard:{flex:1,padding:"9px 6px",borderRadius:10,border:"1.5px solid",background:C.white,cursor:"pointer",textAlign:"left"},
+  scopeTitle:{fontSize:11,fontWeight:700,marginBottom:2},
+  scopeDesc:{fontSize:10,color:C.textMuted,lineHeight:1.4},
+  tagInputRow:{display:"flex",gap:8,marginBottom:8},
+  tagInput:{flex:1,padding:"8px 12px",borderRadius:10,border:`1.5px solid ${C.border}`,fontSize:13,outline:"none",background:C.coralPale},
+  tagAddBtn:{padding:"8px 14px",borderRadius:10,background:C.coralPale,border:"none",fontSize:13,fontWeight:700,color:C.coral,cursor:"pointer"},
+  tagChip:{fontSize:13,color:C.purple,background:C.purplePale,borderRadius:8,padding:"3px 9px",display:"flex",alignItems:"center",gap:4},
+  tagRemove:{background:"none",border:"none",cursor:"pointer",color:C.purple,fontSize:14,padding:0,lineHeight:1},
+  charCount:{fontSize:11,color:C.textMuted,textAlign:"right",padding:"6px 16px 12px"},
+  boardCatBar:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12},
+  boardCatBtn:{padding:"6px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer"},
+  boardNotice:{background:"#FFF8E6",color:"#7A5C00",borderRadius:12,padding:"10px 14px",fontSize:12,lineHeight:1.6,marginBottom:12,border:"1px solid #FFE49A"},
+  boardCard:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid ${C.purplePale}`,boxShadow:"0 1px 6px rgba(0,0,0,0.04)"},
+  boardTop:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8},
+  boardBadge:{fontSize:12,fontWeight:700,background:C.purplePale,color:C.purple,borderRadius:8,padding:"3px 10px",cursor:"pointer"},
+  boardTime:{fontSize:11,color:C.textMuted},
+  boardContent:{fontSize:14,color:C.text,lineHeight:1.65,margin:"0 0 8px"},
+  boardReplyBtn:{background:"none",border:"none",fontSize:12,color:C.purple,fontWeight:600,cursor:"pointer",padding:0},
+  myCard:{background:C.white,borderRadius:16,padding:"18px",display:"flex",gap:14,alignItems:"flex-start",marginBottom:16,border:`1px solid ${C.border}`},
+  myAvatarBox:{width:58,height:58,borderRadius:"50%",background:C.coral,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0},
+  myName:{fontWeight:800,fontSize:17,color:C.text},
+  myUserId:{fontSize:13,color:C.textMuted,marginTop:2},
+  myArea:{fontSize:13,color:C.textSub,marginTop:2},
+  myBio:{fontSize:13,color:C.textSub,marginTop:5,lineHeight:1.55},
+  editProfBtn:{background:C.coralPale,border:`1px solid ${C.coralLight}`,color:C.coral,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0},
+  secTitle:{fontWeight:700,fontSize:13,color:C.textMuted,marginBottom:8,marginTop:4},
+  childCard:{background:C.white,borderRadius:14,padding:"12px 16px",display:"flex",gap:12,alignItems:"center",border:`1.5px solid ${C.border}`,marginBottom:8},
+  childName:{fontWeight:700,fontSize:15,color:C.text},
+  childSub:{fontSize:12,color:C.textMuted,marginTop:2},
+  editChildBtn:{marginLeft:"auto",background:C.coralPale,border:`1px solid ${C.coralLight}`,color:C.coral,borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"},
+  addChildBtn:{width:"100%",padding:"11px",background:"none",border:`2px dashed ${C.coralLight}`,borderRadius:14,color:C.coral,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16},
+  stats:{display:"flex",justifyContent:"space-around",background:C.white,borderRadius:14,padding:"16px",border:`1px solid ${C.border}`},
+  statItem:{textAlign:"center",cursor:"pointer"},
+  statNum:{fontWeight:800,fontSize:22,color:C.coral},
+  statLabel:{fontSize:12,color:C.textMuted,marginTop:2},
+  userListItem:{display:"flex",gap:10,alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${C.border}`},
+  userListAvatar:{width:36,height:36,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`1.5px solid ${C.coralLight}`},
+  userListName:{fontWeight:700,fontSize:14,color:C.text},
+  userListId:{fontSize:12,color:C.textMuted},
+  unfollowBtn:{marginLeft:"auto",background:"none",border:`1px solid ${C.coralLight}`,color:C.coral,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700,cursor:"pointer"},
+  userPageWrap:{background:`linear-gradient(160deg,${C.coralPale},${C.beige})`,padding:"28px 20px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
+  userPageAvatar:{width:64,height:64,borderRadius:"50%",background:C.coral,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 10px"},
+  followBtn:{background:C.coral,color:C.white,border:"none",borderRadius:20,padding:"9px 28px",fontWeight:800,fontSize:14,cursor:"pointer",marginTop:12},
+  unfollowBtnLg:{background:C.white,border:`2px solid ${C.coral}`,color:C.coral,borderRadius:20,padding:"9px 28px",fontWeight:800,fontSize:14,cursor:"pointer",marginTop:12},
+  frozenBanner:{background:C.redPale,border:`1px solid ${C.red}44`,borderRadius:12,padding:"10px 14px",fontSize:13,color:C.red,margin:"12px 12px 0",textAlign:"center"},
+  adminPanel:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,border:"2px solid #FFE49A"},
+  adminTitle:{fontWeight:800,fontSize:15,color:"#7A5C00",marginBottom:10},
+  adminUserRow:{display:"flex",gap:8,alignItems:"center",padding:"8px 0",borderBottom:"1px solid #FFF3C4"},
+  adminFreezeBtn:{background:C.redPale,border:`1px solid ${C.red}44`,color:C.red,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",marginLeft:"auto"},
+  adminUnfreezeBtn:{background:C.greenPale,border:`1px solid ${C.green}44`,color:C.green,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",marginLeft:"auto"},
+  reportSection:{background:C.white,borderRadius:16,padding:"16px",marginBottom:10,border:`1px solid ${C.border}`},
+  reportTitle:{fontWeight:800,fontSize:15,color:C.text,marginBottom:10},
+  feedbackArea:{width:"100%",padding:"10px 12px",borderRadius:10,border:`1.5px solid ${C.purplePale}`,fontSize:13,outline:"none",background:"#FAFAFF",boxSizing:"border-box",fontFamily:"inherit",resize:"none",lineHeight:1.6,color:C.text},
+  feedbackBtn:{marginTop:8,padding:"9px 20px",background:C.purple,color:C.white,border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer"},
+  successMsg:{background:C.greenPale,border:`1px solid ${C.green}44`,borderRadius:10,padding:"10px 14px",fontSize:13,color:C.green,marginTop:8},
+  formLabel:{fontSize:12,fontWeight:700,color:C.textSub,marginBottom:6},
+  formInput:{width:"100%",padding:"10px 12px",borderRadius:10,border:`1.5px solid ${C.border}`,fontSize:14,outline:"none",background:C.coralPale,boxSizing:"border-box",color:C.text},
+  avatarPicker:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8},
+  avatarOpt:{width:44,height:44,borderRadius:"50%",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"},
+  radioRow:{display:"flex",gap:6,flexWrap:"wrap"},
+  radioBtn:{padding:"7px 10px",borderRadius:10,border:"1.5px solid",fontSize:12,fontWeight:600,cursor:"pointer"},
+  deleteBtn:{display:"block",width:"calc(100% - 32px)",margin:"16px 16px 0",padding:"10px",background:"none",border:`1.5px solid ${C.red}66`,borderRadius:12,color:C.red,fontSize:13,fontWeight:700,cursor:"pointer"},
+  logoutBtn:{display:"block",width:"100%",marginTop:24,padding:"13px",background:"none",border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textSub,fontSize:14,fontWeight:700,cursor:"pointer"},
+  donateSection:{background:`linear-gradient(135deg,${C.coralPale},#FFF8E6)`,borderRadius:16,padding:"20px",marginBottom:10,border:`1px solid ${C.coralLight}`,textAlign:"center"},
+  donateTitle:{fontWeight:800,fontSize:16,color:C.coral,marginBottom:6},
+  donateDesc:{fontSize:13,color:C.textSub,lineHeight:1.6,marginBottom:14},
+  donateBtn:{display:"inline-block",padding:"12px 32px",background:C.coral,color:C.white,border:"none",borderRadius:20,fontSize:15,fontWeight:800,cursor:"pointer"},
+};
+
+// ── Overlay ──
+function Overlay({children, onClose, scrollable}) {
+  return (
+    <div style={s.overlayBg} onClick={onClose}>
+      <div style={{...s.modalSheet,...(scrollable?{maxHeight:"90vh",overflowY:"auto"}:{})}}
+        onClick={e=>e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── PostCard ──
+function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine}) {
+  const [menuOpen,setMenuOpen] = useState(false);
+  const uInfo = {user:post.user,userId:post.userId,avatar:post.avatar,area:post.area};
+  return (
+    <div style={s.card}>
+      {menuOpen && (
+        <div style={s.inlineMenu}>
+          {(isMine||isAdmin) && <button style={s.menuItemDanger} onClick={()=>{onDelete(post.id);setMenuOpen(false);}}>🗑️ 削除する</button>}
+          {!isMine && <button style={s.menuItem} onClick={()=>{onReport(post.id,post.user);setMenuOpen(false);}}>🚩 通報する</button>}
+          <button style={{...s.menuItem,color:C.textMuted}} onClick={()=>setMenuOpen(false)}>閉じる</button>
+        </div>
+      )}
+      <div style={s.cardTop}>
+        <button style={s.avatarBtn} onClick={()=>onUserClick(uInfo)}>
+          <div style={s.avatarCircle}>{post.avatar}</div>
+        </button>
+        <div style={s.cardMeta}>
+          <div style={s.nameRow}>
+            <button style={s.userNameBtn} onClick={()=>onUserClick(uInfo)}>{post.user}</button>
+            <span style={s.userIdText}>@{post.userId}</span>
+          </div>
+          <div style={s.subMeta}>
+            <span style={s.areaTag}>📍{post.area}</span>
+            {post.childAges && post.childAges.map(age=>(
+              <span key={age} style={s.ageTag}>👶{age}</span>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          <span style={s.timeText}>{post.time}</span>
+          <span style={{...s.scopeBadge,background:SC_COLOR[post.scope]+"20",color:SC_COLOR[post.scope],border:`1px solid ${SC_COLOR[post.scope]}44`}}>
+            {SC_SHORT[post.scope]}
+          </span>
+        </div>
+      </div>
+      <p style={s.content}>{post.content}</p>
+      {post.tags.length>0 && (
+        <div style={s.tagRow}>
+          {post.tags.map(t=><button key={t} style={s.tagBtn} onClick={()=>onTagClick(t)}>#{t}</button>)}
+        </div>
+      )}
+      <div style={s.actions}>
+        <button style={{...s.actionBtn,color:liked?C.red:C.textSub}} onClick={()=>onLike(post.id)}>{liked?"❤️":"🤍"} {post.likes+(liked?1:0)}</button>
+        <button style={{...s.actionBtn,color:disliked?C.purple:C.textSub}} onClick={()=>onDislike(post.id)}>{disliked?"💔":"🖤"} {post.dislikes+(disliked?1:0)}</button>
+        <button style={s.actionBtn} onClick={onToggleComments}>💬 {post.comments.length}</button>
+        <button style={s.menuBtn} onClick={()=>setMenuOpen(v=>!v)}>▾ メニュー</button>
+      </div>
+      {isOpen && (
+        <div style={s.commentSection}>
+          {post.comments.map(c=>(
+            <div key={c.id} style={s.commentRow}>
+              <div style={s.commentAvatar}>{c.avatar}</div>
+              <div style={{flex:1}}>
+                <div style={s.commentNameRow}>
+                  <span style={s.commentUser}>{c.user}</span>
+                  <span style={s.commentUserId}>@{c.userId}</span>
+                  {(c.userId===post.userId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
+                </div>
+                <div style={s.commentText}>{c.text}</div>
+                <div style={s.commentTime}>{c.time}</div>
+              </div>
+            </div>
+          ))}
+          <div style={s.commentInputRow}>
+            <input style={s.commentInput} placeholder="返信する…" value={commentText}
+              onChange={e=>onCommentChange(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&onCommentSubmit(post.id)}/>
+            <button style={s.commentSendBtn} onClick={()=>onCommentSubmit(post.id)}>送信</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── App ──
+function App() {
+  const [screen,setScreen]           = useState("login");
+  const [tab,setTab]                 = useState("timeline");
+  const [filterArea,setFilterArea]   = useState("全域");
+  const [filterAge,setFilterAge]     = useState("全員");
+  const [boardCat,setBoardCat]       = useState("すべて");
+  const [posts,setPosts]             = useState(INIT_POSTS);
+  const [boards,setBoards]           = useState(INIT_BOARDS);
+  const [users]                      = useState(INIT_USERS);
+  const [frozenIds,setFrozenIds]     = useState(new Set());
+  const [reports,setReports]         = useState([]);
+  const [feedbacks,setFeedbacks]     = useState([]);
+  const [likedIds,setLikedIds]       = useState(new Set());
+  const [dislikedIds,setDislikedIds] = useState(new Set());
+  const [profile,setProfile]         = useState(null);
+  const [following,setFollowing]     = useState([]);
+  const [tagSearch,setTagSearch]     = useState(null);
+  const [viewUser,setViewUser]       = useState(null);
+  const [openPostId,setOpenPostId]   = useState(null);
+  const [openBoardId,setOpenBoardId] = useState(null);
+  const [commentText,setCommentText] = useState("");
+  const [boardCommentText,setBoardCommentText] = useState("");
+  const [showFollowers,setShowFollowers] = useState(false);
+  const [showFollowing,setShowFollowing] = useState(false);
+  const [composing,setComposing]     = useState(false);
+  const [draftText,setDraftText]     = useState("");
+  const [draftScope,setDraftScope]   = useState("all");
+  const [draftTag,setDraftTag]       = useState("");
+  const [draftTags,setDraftTags]     = useState([]);
+  const [boardComposing,setBoardComposing] = useState(false);
+  const [boardDraftCat,setBoardDraftCat]   = useState("育児相談");
+  const [boardDraftText,setBoardDraftText] = useState("");
+  const [editProf,setEditProf]       = useState(false);
+  const [profDraft,setProfDraft]     = useState(null);
+  const [childMode,setChildMode]     = useState(null);
+  const [childDraft,setChildDraft]   = useState(null);
+  const [feedbackText,setFeedbackText] = useState("");
+  const [feedbackSent,setFeedbackSent] = useState(false);
+  const [loginId,setLoginId]         = useState("");
+  const [loginPw,setLoginPw]         = useState("");
+  const [loginError,setLoginError]   = useState("");
+  const [signupName,setSignupName]   = useState("");
+  const [signupId,setSignupId]       = useState("");
+  const [signupPw,setSignupPw]       = useState("");
+  const [signupArea,setSignupArea]   = useState("県央");
+  const [signupAvatar,setSignupAvatar] = useState("🌸");
+  const [registeredUsers,setRegisteredUsers] = useState([]);
+  const [signupError,setSignupError] = useState("");
+
+  const isAdmin = profile?.userId === ADMIN_ID;
+  const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
+  const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
+  const followerList  = [];
+
+  const handleLogin = () => {
+    setLoginError("");
+    if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
+    if (loginId===ADMIN_ID&&loginPw==="admin"){
+      setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
+      setTab("timeline");setScreen("main");return;
+    }
+    const found = registeredUsers.find(u=>u.userId===loginId);
+    if (!found){setLoginError("このIDは登録されていません");return;}
+    if (found.password!==loginPw){setLoginError("パスワードが違います");return;}
+    if (frozenIds.has(found.userId)){setLoginError("このアカウントは凍結されています");return;}
+    setProfile({name:found.name,userId:found.userId,area:found.area,avatar:found.avatar,bio:found.bio||"",children:[]});
+    setTab("timeline");setScreen("main");
+  };
+
+  const handleSignup = () => {
+    setSignupError("");
+    if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
+    if (signupId===ADMIN_ID){setSignupError("このIDは使用できません");return;}
+    if (registeredUsers.find(u=>u.userId===signupId)){setSignupError("このIDはすでに使われています");return;}
+    if (signupPw.length<6){setSignupError("パスワードは6文字以上にしてください");return;}
+    const nu={userId:signupId,name:signupName,area:signupArea,avatar:signupAvatar,bio:"",password:signupPw};
+    setRegisteredUsers(p=>[...p,nu]);
+    setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
+    setTab("timeline");setScreen("main");
+  };
+
+  const handleLogout = () => {
+    setProfile(null);setFollowing([]);
+    setLikedIds(new Set());setDislikedIds(new Set());
+    setTagSearch(null);setViewUser(null);setTab("timeline");
+    setLoginId("");setLoginPw("");setScreen("login");
+  };
+
+  const toggleLike = id => {
+    setLikedIds(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+    setDislikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+  };
+  const toggleDislike = id => {
+    setDislikedIds(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+    setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+  };
+  const toggleFollow = userId => setFollowing(p=>p.includes(userId)?p.filter(id=>id!==userId):[...p,userId]);
+
+  const submitPost = () => {
+    if (!draftText.trim()) return;
+    setPosts(p=>[{id:Date.now(),user:profile.name,userId:profile.userId,area:profile.area,avatar:profile.avatar,
+      childAges:profile.children.map(c=>c.age),content:draftText,time:"たった今",likes:0,dislikes:0,
+      scope:draftScope,tags:[...draftTags],comments:[]}, ...p]);
+    setDraftText("");setDraftScope("all");setDraftTags([]);setDraftTag("");setComposing(false);
+  };
+  const addTag = () => {
+    const t=draftTag.trim().replace(/^#/,"");
+    if (t&&!draftTags.includes(t)&&draftTags.length<5){setDraftTags(p=>[...p,t]);setDraftTag("");}
+  };
+  const deletePost = id => setPosts(p=>p.filter(x=>x.id!==id));
+  const deleteComment = (postId,cid) => setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
+  const submitComment = postId => {
+    if (!commentText.trim()) return;
+    setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:[...x.comments,{id:Date.now(),user:profile.name,userId:profile.userId,avatar:profile.avatar,text:commentText,time:"たった今"}]}));
+    setCommentText("");
+  };
+  const submitBoardComment = boardId => {
+    if (!boardCommentText.trim()) return;
+    setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:Date.now(),text:boardCommentText,time:"たった今"}]}));
+    setBoardCommentText("");
+  };
+  const submitBoard = () => {
+    if (!boardDraftText.trim()) return;
+    setBoards(p=>[{id:Date.now(),category:boardDraftCat,content:boardDraftText,time:"たった今",comments:[]}, ...p]);
+    setBoardDraftText("");setBoardComposing(false);
+  };
+  const handleReport = (postId,userName) => {
+    setReports(p=>[...p,{id:Date.now(),postId,userName,time:"たった今"}]);
+    alert("通報しました。運営が確認します。");
+  };
+  const freezeUser   = uid => setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
+  const unfreezeUser = uid => setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
+  const submitFeedback = () => {
+    if (!feedbackText.trim()) return;
+    setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:"たった今"}]);
+    setFeedbackText("");setFeedbackSent(true);
+    setTimeout(()=>setFeedbackSent(false),3000);
+  };
+  const openEditProf = () => {setProfDraft({...profile,children:profile.children.map(c=>({...c}))});setEditProf(true);};
+  const saveProf = () => {setProfile(profDraft);setEditProf(false);};
+  const openAddChild = () => {setChildDraft({id:Date.now(),name:"",age:"0〜6ヶ月",gender:"女の子"});setChildMode("new");};
+  const openEditChild = c => {setChildDraft({...c});setChildMode("edit");};
+  const saveChild = () => {
+    if (!childDraft.name.trim()) return;
+    setProfile(p=>({...p,children:childMode==="new"?[...p.children,childDraft]:p.children.map(c=>c.id===childDraft.id?childDraft:c)}));
+    setChildMode(null);
+  };
+  const deleteChild = () => {setProfile(p=>({...p,children:p.children.filter(c=>c.id!==childDraft.id)}));setChildMode(null);};
+
+  const pcp = post => ({
+    post, liked:likedIds.has(post.id), disliked:dislikedIds.has(post.id),
+    onLike:toggleLike, onDislike:toggleDislike,
+    onUserClick:u=>setViewUser(u),
+    onTagClick:t=>{setTagSearch(t);setTab("timeline");setViewUser(null);},
+    isOpen:openPostId===post.id,
+    onToggleComments:()=>setOpenPostId(openPostId===post.id?null:post.id),
+    commentText, onCommentChange:setCommentText, onCommentSubmit:submitComment,
+    onDelete:deletePost, onDeleteComment:deleteComment, onReport:handleReport,
+    isAdmin, isMine:post.userId===profile?.userId,
+  });
+
+  const visiblePosts = posts.filter(p=>{
+    if (frozenIds.has(p.userId)&&!isAdmin) return false;
+    if (p.scope==="wall"&&p.userId!==profile?.userId) return false;
+    if (p.scope==="followers"&&p.userId!==profile?.userId&&!following.includes(p.userId)) return false;
+    if (tagSearch) return p.tags.includes(tagSearch);
+    if (tab==="area"&&filterArea!=="全域"&&p.area!==filterArea) return false;
+    if (tab==="age"&&filterAge!=="全員"){
+      const allowed=AGE_MAP[filterAge]||[];
+      return (p.childAges||[]).some(age=>allowed.some(k=>age.includes(k)||k.includes(age)));
+    }
+    return true;
+  });
+  const myPosts = posts.filter(p=>p.userId===profile?.userId);
+  const filteredBoards = boardCat==="すべて"?boards:boards.filter(b=>b.category===boardCat);
+
+  // ── ログイン画面 ──
+  if (screen==="login") return (
+    <div style={s.authRoot}>
+      <div style={s.authInner}>
+        <div style={s.authHero}>
+          <div style={s.authTagline}>手っこ取り合い　みんなで育てるいわてっ子</div>
+          <div style={s.authLogoText}>tecco</div>
+          <div style={s.authSubtitle}>いわてのパパママでつくるSNS</div>
+        </div>
+        <div style={s.authCard}>
+          <div style={s.authCardTitle}>ログインする</div>
+          <div style={s.authLabel}>ユーザーID</div>
+          <input style={s.authInput} placeholder="ユーザーIDを入力してください" value={loginId}
+            onChange={e=>{setLoginId(e.target.value);setLoginError("");}}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
+          <div style={s.authLabel}>パスワード</div>
+          <input style={s.authInput} type="password" placeholder="パスワードを入力してください" value={loginPw}
+            onChange={e=>{setLoginPw(e.target.value);setLoginError("");}}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
+          {loginError && <div style={s.authError}>{loginError}</div>}
+          <div style={{height:8}}/>
+          <button style={s.authBtn} onClick={handleLogin}>ログインする</button>
+          <button style={s.authBtnSub} onClick={()=>{setScreen("signup");setLoginError("");}}>新規登録</button>
+        </div>
+        <div style={s.authNote}>※岩手在住・出身のパパママ限定です</div>
+      </div>
+    </div>
+  );
+
+  // ── 新規登録画面 ──
+  if (screen==="signup") return (
+    <div style={s.authRoot}>
+      <div style={s.authInner}>
+        <div style={{...s.authHero,paddingTop:32,paddingBottom:20}}>
+          <div style={s.authLogoText}>tecco</div>
+        </div>
+        <div style={s.authCard}>
+          <div style={s.authCardTitle}>アカウントを新規作成する</div>
+          <div style={s.formLabel}>アイコンを選ぶ</div>
+          <div style={s.avatarPicker}>
+            {AVATARS.map(av=>(
+              <button key={av} onClick={()=>setSignupAvatar(av)}
+                style={{...s.avatarOpt,background:signupAvatar===av?C.coralPale:"#f8fafc",border:signupAvatar===av?`2px solid ${C.coral}`:"2px solid transparent"}}>{av}</button>
+            ))}
+          </div>
+          <div style={{height:8}}/>
+          <div style={s.authLabel}>ニックネーム</div>
+          <input style={s.authInput} placeholder="ニックネームを入力" value={signupName} onChange={e=>{setSignupName(e.target.value);setSignupError("");}}/>
+          <div style={s.authLabel}>ユーザーID（英数字）</div>
+          <input style={s.authInput} placeholder="例：iwate_mama" value={signupId} onChange={e=>{setSignupId(e.target.value);setSignupError("");}}/>
+          <div style={s.authLabel}>地域</div>
+          <select style={{...s.authInput,background:C.coralPale}} value={signupArea} onChange={e=>setSignupArea(e.target.value)}>
+            {AREAS.map(a=><option key={a}>{a}</option>)}
+          </select>
+          <div style={s.authLabel}>パスワード（6文字以上）</div>
+          <input style={s.authInput} type="password" placeholder="6文字以上" value={signupPw} onChange={e=>{setSignupPw(e.target.value);setSignupError("");}}/>
+          {signupError && <div style={s.authError}>{signupError}</div>}
+          <button style={s.authBtn} onClick={handleSignup}>登録する</button>
+          <button style={s.authBtnSub} onClick={()=>{setScreen("login");setSignupError("");}}>ログインに戻る</button>
+        </div>
+        <div style={s.authNote}>※岩手在住・出身のパパママ限定です</div>
+      </div>
+    </div>
+  );
+
+  // ── フォロー中一覧 ──
+  if (showFollowing) return (
+    <div style={s.root}>
+      <header style={s.header}><div style={s.headerInner}>
+        <button style={s.backBtn} onClick={()=>setShowFollowing(false)}>← 戻る</button>
+        <span style={s.headerTitle}>フォロー中</span><div style={{width:40}}/>
+      </div></header>
+      <div style={{padding:"12px 16px"}}>
+        {followingList.length===0 && <div style={s.emptyMsg}>まだフォローしていません</div>}
+        {followingList.map(u=>(
+          <div key={u.userId} style={s.userListItem}>
+            <button style={s.avatarBtn} onClick={()=>{setShowFollowing(false);setViewUser(u);}}>
+              <div style={s.userListAvatar}>{u.avatar}</div>
+            </button>
+            <div style={{flex:1,cursor:"pointer"}} onClick={()=>{setShowFollowing(false);setViewUser(u);}}>
+              <div style={s.userListName}>{u.user}</div>
+              <div style={s.userListId}>@{u.userId}</div>
+            </div>
+            <button style={s.unfollowBtn} onClick={()=>toggleFollow(u.userId)}>フォロー解除</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── フォロワー一覧 ──
+  if (showFollowers) return (
+    <div style={s.root}>
+      <header style={s.header}><div style={s.headerInner}>
+        <button style={s.backBtn} onClick={()=>setShowFollowers(false)}>← 戻る</button>
+        <span style={s.headerTitle}>フォロワー</span><div style={{width:40}}/>
+      </div></header>
+      <div style={{padding:"12px 16px"}}>
+        {followerList.length===0 && <div style={s.emptyMsg}>フォロワーがいません</div>}
+        {followerList.map(u=>(
+          <div key={u.userId} style={s.userListItem}>
+            <button style={s.avatarBtn} onClick={()=>{setShowFollowers(false);setViewUser(u);}}>
+              <div style={s.userListAvatar}>{u.avatar}</div>
+            </button>
+            <div style={{flex:1,cursor:"pointer"}} onClick={()=>{setShowFollowers(false);setViewUser(u);}}>
+              <div style={s.userListName}>{u.user}</div>
+              <div style={s.userListId}>@{u.userId}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── 他ユーザーページ ──
+  if (viewUser) {
+    const isFrozen    = frozenIds.has(viewUser.userId);
+    const isFollowing = following.includes(viewUser.userId);
+    const userPosts   = posts.filter(p=>p.userId===viewUser.userId&&p.scope!=="wall");
+    return (
+      <div style={s.root}>
+        <header style={s.header}><div style={s.headerInner}>
+          <button style={s.backBtn} onClick={()=>setViewUser(null)}>← 戻る</button>
+          <span style={s.headerTitle}>tecco</span><div style={{width:40}}/>
+        </div></header>
+        {isFrozen && <div style={s.frozenBanner}>🔒 このアカウントは凍結されています</div>}
+        <div style={s.userPageWrap}>
+          <div style={s.userPageAvatar}>{viewUser.avatar}</div>
+          <div style={s.myName}>{viewUser.user}</div>
+          <div style={s.myUserId}>@{viewUser.userId}</div>
+          <div style={s.myArea}>📍 {viewUser.area}</div>
+          <div style={{display:"flex",gap:32,justifyContent:"center",marginTop:14}}>
+            <div style={s.statItem}><div style={s.statNum}>{userPosts.length}</div><div style={s.statLabel}>投稿</div></div>
+            <div style={s.statItem}><div style={s.statNum}>—</div><div style={s.statLabel}>フォロワー</div></div>
+            <div style={s.statItem}><div style={s.statNum}>—</div><div style={s.statLabel}>フォロー中</div></div>
+          </div>
+          {viewUser.userId!==profile?.userId && (
+            <button style={isFollowing?s.unfollowBtnLg:s.followBtn} onClick={()=>toggleFollow(viewUser.userId)}>
+              {isFollowing?"フォロー中（解除）":"フォローする"}
+            </button>
+          )}
+          {isAdmin && (
+            <div style={{marginTop:10}}>
+              {isFrozen
+                ?<button style={s.adminUnfreezeBtn} onClick={()=>unfreezeUser(viewUser.userId)}>凍結を解除する</button>
+                :<button style={s.adminFreezeBtn} onClick={()=>freezeUser(viewUser.userId)}>このアカウントを凍結する</button>}
+            </div>
+          )}
+        </div>
+        <div style={{padding:"12px 12px 24px"}}>
+          {userPosts.length===0 && <div style={s.emptyMsg}>公開投稿がありません</div>}
+          {userPosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
+        </div>
+      </div>
+    );
+  }
+
+  // ── メイン ──
+  return (
+    <div style={s.root}>
+      <header style={s.header}>
+        <div style={s.headerInner}>
+          <div style={{width:40}}/>
+          <span style={s.headerTitle}>tecco</span>
+          <div style={s.headerRight}>
+            {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
+          </div>
+        </div>
+      </header>
+
+      {tagSearch && (
+        <div style={s.tagBanner}>
+          <span>🔍 #{tagSearch} の投稿</span>
+          <button style={s.tagBannerBtn} onClick={()=>setTagSearch(null)}>✕ 解除</button>
+        </div>
+      )}
+
+      <nav style={s.tabNav}>
+        {[{key:"timeline",label:"HOME"},{key:"area",label:"地域"},{key:"age",label:"月齢/年齢"},{key:"board",label:"掲示板"},{key:"mypage",label:"マイページ"}].map(t=>(
+          <button key={t.key} onClick={()=>{setTab(t.key);setTagSearch(null);}}
+            style={{...s.tabBtn,...(tab===t.key?s.tabActive:{})}}>{t.label}</button>
+        ))}
+      </nav>
+
+      {tab==="area"&&!tagSearch&&(
+        <div style={s.filterBar}>
+          <select style={s.select} value={filterArea} onChange={e=>setFilterArea(e.target.value)}>
+            {FILTER_AREAS.map(a=><option key={a}>{a}</option>)}
+          </select>
+          <div style={s.hint}>県央／県北／県南／沿岸／県外でしぼり込み</div>
+        </div>
+      )}
+      {tab==="age"&&!tagSearch&&(
+        <div style={s.filterBar}>
+          <select style={s.select} value={filterAge} onChange={e=>setFilterAge(e.target.value)}>
+            {AGE_GROUPS.map(a=><option key={a}>{a}</option>)}
+          </select>
+          <div style={s.hint}>妊娠中〜高校生まで選べます</div>
+        </div>
+      )}
+
+      <main style={s.main}>
+        {(tab==="timeline"||tab==="area"||tab==="age"||tagSearch) && (
+          <>
+            {visiblePosts.length===0 && <div style={s.emptyMsg}>投稿がありません</div>}
+            {visiblePosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
+          </>
+        )}
+
+        {tab==="board"&&!tagSearch && (
+          <>
+            <div style={s.boardNotice}>🔒 掲示板はアカウントと紐付かない匿名投稿です。</div>
+            <div style={s.boardCatBar}>
+              {BOARD_CATS.map(c=>(
+                <button key={c} style={{...s.boardCatBtn,background:boardCat===c?C.purplePale:C.white,borderColor:boardCat===c?C.purple:C.border,color:boardCat===c?C.purple:C.textSub}}
+                  onClick={()=>setBoardCat(c)}>{c}</button>
+              ))}
+            </div>
+            {filteredBoards.length===0 && <div style={s.emptyMsg}>この分類の投稿はまだありません</div>}
+            {filteredBoards.map(b=>(
+              <div key={b.id} style={s.boardCard}>
+                <div style={s.boardTop}>
+                  <span style={s.boardBadge} onClick={()=>setBoardCat(b.category)}>{BOARD_ICONS[b.category]||"💬"} {b.category}</span>
+                  <span style={s.boardTime}>{b.time}</span>
+                </div>
+                <p style={s.boardContent}>{b.content}</p>
+                <button style={s.boardReplyBtn} onClick={()=>setOpenBoardId(openBoardId===b.id?null:b.id)}>
+                  💬 {b.comments.length}件の返信 {openBoardId===b.id?"▲":"▼"}
+                </button>
+                {openBoardId===b.id && (
+                  <div style={s.commentSection}>
+                    {b.comments.map(c=>(
+                      <div key={c.id} style={s.anonRow}>
+                        <span style={{fontSize:18}}>🙈</span>
+                        <div style={{flex:1}}>
+                          <div style={s.commentText}>{c.text}</div>
+                          <div style={s.commentTime}>{c.time}</div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={s.commentInputRow}>
+                      <input style={s.commentInput} placeholder="匿名で返信する…" value={boardCommentText}
+                        onChange={e=>setBoardCommentText(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&submitBoardComment(b.id)}/>
+                      <button style={s.commentSendBtn} onClick={()=>submitBoardComment(b.id)}>送信</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
+        {tab==="mypage"&&!tagSearch && (
+          <>
+            <div style={s.myCard}>
+              <div style={s.myAvatarBox}>{profile.avatar}</div>
+              <div style={{flex:1}}>
+                <div style={s.myName}>{profile.name}</div>
+                <div style={s.myUserId}>@{profile.userId}</div>
+                <div style={s.myArea}>📍 {profile.area}</div>
+                <div style={s.myBio}>{profile.bio||"自己紹介がまだありません"}</div>
+              </div>
+              <button style={s.editProfBtn} onClick={openEditProf}>編集</button>
+            </div>
+            <div style={s.stats}>
+              <div style={s.statItem}><div style={s.statNum}>{myPosts.length}</div><div style={s.statLabel}>投稿</div></div>
+              <div style={s.statItem} onClick={()=>setShowFollowers(true)}><div style={s.statNum}>{followerList.length}</div><div style={s.statLabel}>フォロワー</div></div>
+              <div style={s.statItem} onClick={()=>setShowFollowing(true)}><div style={s.statNum}>{following.length}</div><div style={s.statLabel}>フォロー中</div></div>
+            </div>
+            <div style={{...s.secTitle,marginTop:16}}>👶 子ども情報</div>
+            {profile.children.map(c=>(
+              <div key={c.id} style={s.childCard}>
+                <span style={{fontSize:24}}>👶</span>
+                <div style={{flex:1}}><div style={s.childName}>{c.name}</div><div style={s.childSub}>{c.age} / {c.gender}</div></div>
+                <button style={s.editChildBtn} onClick={()=>openEditChild(c)}>編集</button>
+              </div>
+            ))}
+            <button style={s.addChildBtn} onClick={openAddChild}>＋ 子どもを追加</button>
+            <div style={s.secTitle}>📝 自分の投稿</div>
+            {myPosts.length===0 && <div style={s.emptyMsg}>まだ投稿がありません</div>}
+            {myPosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
+            <div style={{...s.secTitle,marginTop:20}}>💌 要望・フィードバック</div>
+            <div style={s.reportSection}>
+              <div style={s.reportTitle}>teccoへのご意見・改善要望</div>
+              <textarea style={s.feedbackArea} rows={4} placeholder="機能のご要望、使いにくかった点など、なんでもお気軽にどうぞ"
+                value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}/>
+              <button style={s.feedbackBtn} onClick={submitFeedback}>送信する</button>
+              {feedbackSent && <div style={s.successMsg}>✅ 送信しました！ありがとうございます。</div>}
+            </div>
+            {isAdmin && (
+              <>
+                <div style={{...s.secTitle,marginTop:8}}>💝 サポート</div>
+                <div style={s.donateSection}>
+                  <div style={s.donateTitle}>teccoを応援する</div>
+                  <div style={s.donateDesc}>teccoは岩手のパパママのために<br/>有志で運営しています。<br/>ご支援いただけると嬉しいです🍀</div>
+                  <button style={s.donateBtn} onClick={()=>alert("準備中です。ありがとうございます！💝")}>💝 寄付する</button>
+                </div>
+                <div style={{...s.secTitle,marginTop:8}}>⚙️ 管理者パネル</div>
+                <div style={s.adminPanel}>
+                  <div style={s.adminTitle}>ユーザー管理（{registeredUsers.length}名登録）</div>
+                  {registeredUsers.map(u=>(
+                    <div key={u.userId} style={s.adminUserRow}>
+                      <span style={{fontSize:20}}>{u.avatar}</span>
+                      <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13,color:C.text}}>{u.name}</div><div style={{fontSize:11,color:C.textMuted}}>@{u.userId}</div></div>
+                      {frozenIds.has(u.userId)
+                        ?<button style={s.adminUnfreezeBtn} onClick={()=>unfreezeUser(u.userId)}>凍結解除</button>
+                        :<button style={s.adminFreezeBtn} onClick={()=>freezeUser(u.userId)}>凍結</button>}
+                    </div>
+                  ))}
+                  {registeredUsers.length===0 && <div style={{fontSize:13,color:C.textMuted}}>まだ登録ユーザーがいません</div>}
+                </div>
+                <div style={s.adminPanel}>
+                  <div style={s.adminTitle}>通報一覧（{reports.length}件）</div>
+                  {reports.length===0 && <div style={{fontSize:13,color:C.textMuted}}>通報はありません</div>}
+                  {reports.map(r=><div key={r.id} style={{fontSize:13,padding:"6px 0",borderBottom:"1px solid #FFF3C4"}}>🚩 <strong>{r.userName}</strong> の投稿 — {r.time}</div>)}
+                </div>
+                <div style={s.adminPanel}>
+                  <div style={s.adminTitle}>フィードバック（{feedbacks.length}件）</div>
+                  {feedbacks.length===0 && <div style={{fontSize:13,color:C.textMuted}}>フィードバックはありません</div>}
+                  {feedbacks.map(f=><div key={f.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",lineHeight:1.5}}>💌 {f.text} <span style={{color:C.textMuted}}>— {f.time}</span></div>)}
+                </div>
+              </>
+            )}
+            <button style={s.logoutBtn} onClick={handleLogout}>ログアウト</button>
+            <div style={{height:8}}/>
+          </>
+        )}
+      </main>
+
+      <button style={s.fab} onClick={()=>tab==="board"?setBoardComposing(true):setComposing(true)}>＋ 投稿する</button>
+
+      {composing && (
+        <Overlay onClose={()=>setComposing(false)}>
+          <div style={s.modalHeader}>
+            <button style={s.closeBtn} onClick={()=>setComposing(false)}>✕</button>
+            <span style={s.modalTitle}>つぶやく</span>
+            <button style={{...s.postBtn,opacity:draftText.trim()?1:0.4}} onClick={submitPost}>投稿</button>
+          </div>
+          <div style={s.composeUser}>
+            <div style={s.composeAvatar}>{profile.avatar}</div>
+            <div><div style={s.composeUserName}>{profile.name}</div><div style={s.composeUserSub}>@{profile.userId} · 📍{profile.area}</div></div>
+          </div>
+          <textarea style={s.textarea} autoFocus rows={5} maxLength={280}
+            placeholder="今どんな気持ち？岩手のみんなに話してみよう☁️"
+            value={draftText} onChange={e=>setDraftText(e.target.value)}/>
+          <div style={s.divider}/>
+          <div style={s.sectionPad}>
+            <div style={s.subLabel}>📢 公開範囲</div>
+            <div style={s.scopeCards}>
+              {["all","wall","followers"].map(sc=>(
+                <button key={sc} onClick={()=>setDraftScope(sc)}
+                  style={{...s.scopeCard,borderColor:draftScope===sc?SC_COLOR[sc]:C.border,background:draftScope===sc?SC_COLOR[sc]+"18":C.white}}>
+                  <div style={{...s.scopeTitle,color:draftScope===sc?SC_COLOR[sc]:C.textSub}}>{SC_LONG[sc]}</div>
+                  <div style={s.scopeDesc}>{SC_DESC[sc]}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={s.divider}/>
+          <div style={s.sectionPad}>
+            <div style={s.subLabel}>🏷️ タグ（最大5個）</div>
+            <div style={s.tagInputRow}>
+              <input style={s.tagInput} placeholder="例：夜泣き" value={draftTag}
+                onChange={e=>setDraftTag(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag()}/>
+              <button style={s.tagAddBtn} onClick={addTag}>追加</button>
+            </div>
+            <div style={s.tagRow}>
+              {draftTags.map(t=>(
+                <span key={t} style={s.tagChip}>#{t}
+                  <button style={s.tagRemove} onClick={()=>setDraftTags(p=>p.filter(x=>x!==t))}>×</button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={s.charCount}>{draftText.length} / 280</div>
+        </Overlay>
+      )}
+
+      {boardComposing && (
+        <Overlay onClose={()=>setBoardComposing(false)}>
+          <div style={s.modalHeader}>
+            <button style={s.closeBtn} onClick={()=>setBoardComposing(false)}>✕</button>
+            <span style={s.modalTitle}>匿名で書き込む</span>
+            <button style={{...s.postBtn,opacity:boardDraftText.trim()?1:0.4}} onClick={submitBoard}>投稿</button>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.boardNotice}>🔒 この投稿はアカウントと紐付きません</div>
+            <div style={s.subLabel}>カテゴリ</div>
+            <div style={s.radioRow}>
+              {BOARD_CATS.filter(c=>c!=="すべて").map(c=>(
+                <button key={c} onClick={()=>setBoardDraftCat(c)}
+                  style={{...s.radioBtn,background:boardDraftCat===c?C.purplePale:C.white,borderColor:boardDraftCat===c?C.purple:C.border,color:boardDraftCat===c?C.purple:C.textSub}}>{c}</button>
+              ))}
+            </div>
+            <div style={{...s.subLabel,marginTop:14}}>内容</div>
+            <textarea style={{...s.textarea,border:`1.5px solid ${C.purplePale}`,borderRadius:10,background:"#FAFAFF"}}
+              rows={5} maxLength={500} placeholder="悩みや相談を書いてください…"
+              value={boardDraftText} onChange={e=>setBoardDraftText(e.target.value)}/>
+          </div>
+          <div style={{height:16}}/>
+        </Overlay>
+      )}
+
+      {editProf&&profDraft && (
+        <Overlay onClose={()=>setEditProf(false)} scrollable>
+          <div style={s.modalHeader}>
+            <button style={s.closeBtn} onClick={()=>setEditProf(false)}>✕</button>
+            <span style={s.modalTitle}>プロフィール編集</span>
+            <button style={s.postBtn} onClick={saveProf}>保存</button>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>アイコン</div>
+            <div style={s.avatarPicker}>
+              {AVATARS.map(av=>(
+                <button key={av} onClick={()=>setProfDraft(p=>({...p,avatar:av}))}
+                  style={{...s.avatarOpt,background:profDraft.avatar===av?C.coralPale:"#f8fafc",border:profDraft.avatar===av?`2px solid ${C.coral}`:"2px solid transparent"}}>{av}</button>
+              ))}
+            </div>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>ニックネーム</div>
+            <input style={s.formInput} value={profDraft.name} onChange={e=>setProfDraft(p=>({...p,name:e.target.value}))}/>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>地域</div>
+            <select style={s.select} value={profDraft.area} onChange={e=>setProfDraft(p=>({...p,area:e.target.value}))}>
+              {AREAS.map(a=><option key={a}>{a}</option>)}
+            </select>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>自己紹介</div>
+            <textarea rows={3} style={{...s.textarea,border:`1.5px solid ${C.border}`,borderRadius:10,background:C.coralPale}}
+              value={profDraft.bio} onChange={e=>setProfDraft(p=>({...p,bio:e.target.value}))} placeholder="育児のこと、趣味、なんでも"/>
+          </div>
+          <div style={{height:20}}/>
+        </Overlay>
+      )}
+
+      {childMode&&childDraft && (
+        <Overlay onClose={()=>setChildMode(null)}>
+          <div style={s.modalHeader}>
+            <button style={s.closeBtn} onClick={()=>setChildMode(null)}>✕</button>
+            <span style={s.modalTitle}>{childMode==="new"?"子どもを追加":"子ども情報を編集"}</span>
+            <button style={s.postBtn} onClick={saveChild}>保存</button>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>名前（ニックネームでOK）</div>
+            <input style={s.formInput} value={childDraft.name} onChange={e=>setChildDraft(c=>({...c,name:e.target.value}))} placeholder="例：はると"/>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>月齢・年齢</div>
+            <select style={s.select} value={childDraft.age} onChange={e=>setChildDraft(c=>({...c,age:e.target.value}))}>
+              {CHILD_AGES.map(a=><option key={a}>{a}</option>)}
+            </select>
+          </div>
+          <div style={s.sectionPad}>
+            <div style={s.formLabel}>性別</div>
+            <div style={s.radioRow}>
+              {["女の子","男の子","回答しない"].map(g=>(
+                <button key={g} onClick={()=>setChildDraft(c=>({...c,gender:g}))}
+                  style={{...s.radioBtn,background:childDraft.gender===g?C.coralPale:C.white,borderColor:childDraft.gender===g?C.coral:C.border,color:childDraft.gender===g?C.coral:C.textSub}}>{g}</button>
+              ))}
+            </div>
+          </div>
+          {childMode==="edit" && <button style={s.deleteBtn} onClick={deleteChild}>この子の情報を削除する</button>}
+          <div style={{height:16}}/>
+        </Overlay>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
