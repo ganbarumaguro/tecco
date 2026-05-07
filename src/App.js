@@ -498,13 +498,15 @@ function App() {
     }
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
+      const {data:likesCount} = await supabase.from("likes").select("post_id, type");
       if (postsData) {
         setPosts(postsData.map(p=>({
           id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
           childAges:JSON.parse(p.child_ages||"[]"),
           content:p.content,
           time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-          likes:p.likes||0, dislikes:p.dislikes||0,
+          likes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="like").length : 0,
+          dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
           scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
         })));
       }
@@ -536,7 +538,7 @@ function App() {
             }))
         })));
       }
-      
+
       }
  const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
       if (spotsData) {
@@ -565,6 +567,16 @@ function App() {
         const {data:followsData} = await supabase.from("follows").select("following_id").eq("follower_id",userId||"");
         if (followsData) setFollowing(followsData.map(f=>f.following_id));
       }
+      if (savedUser) {
+        const {userId} = JSON.parse(savedUser);
+        if (userId) {
+          const {data:likesData} = await supabase.from("likes").select("*").eq("user_id", userId);
+          if (likesData) {
+            setLikedIds(new Set(likesData.filter(l=>l.type==="like").map(l=>l.post_id)));
+            setDislikedIds(new Set(likesData.filter(l=>l.type==="dislike").map(l=>l.post_id)));
+          }
+        }
+      }
     };
     fetchAll();
   }, []);
@@ -575,42 +587,38 @@ function App() {
     if (!post) return;
     if (isLiked) {
       await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","like");
-      await supabase.from("posts").update({likes:post.likes-1}).eq("id",id);
-      setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-      setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:x.likes-1}));
+            setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+      
     } else {
       await supabase.from("likes").insert({post_id:id,user_id:profile.userId,type:"like"});
-      await supabase.from("posts").update({likes:post.likes+1}).eq("id",id);
-      setLikedIds(p=>{const n=new Set(p);n.add(id);return n;});
-      setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:x.likes+1}));
+            setLikedIds(p=>{const n=new Set(p);n.add(id);return n;});
+      
       if (dislikedIds.has(id)) {
         await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","dislike");
         await supabase.from("posts").update({dislikes:post.dislikes-1}).eq("id",id);
         setDislikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-        setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:x.dislikes-1}));
+        setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes-1}));
       }
     }
   };
-
-  const toggleDislike = async id => {
+const toggleDislike = async id => {
     const isDisliked = dislikedIds.has(id);
     const post = posts.find(x=>x.id===id);
     if (!post) return;
     if (isDisliked) {
       await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","dislike");
-      await supabase.from("posts").update({dislikes:post.dislikes-1}).eq("id",id);
+      
       setDislikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-      setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:x.dislikes-1}));
+      setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes-1}));
     } else {
       await supabase.from("likes").insert({post_id:id,user_id:profile.userId,type:"dislike"});
       await supabase.from("posts").update({dislikes:post.dislikes+1}).eq("id",id);
       setDislikedIds(p=>{const n=new Set(p);n.add(id);return n;});
-      setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:x.dislikes+1}));
+      
       if (likedIds.has(id)) {
         await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","like");
-        await supabase.from("posts").update({likes:post.likes-1}).eq("id",id);
-        setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-        setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:x.likes-1}));
+                setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+        
       }
     }
   };
