@@ -37,18 +37,12 @@ const AGE_MAP = {
   "高校生":["高校生","高1","高2","高3"],
 };
 const SC_COLOR = {all:C.green, wall:C.coral, followers:C.purple};
-const SC_SHORT = {all:"🌍 全員", wall:"🪞 壁打ち", followers:"👥 フォロワー"};
-const SC_LONG  = {all:"🌍 全員に公開", wall:"🪞 壁打ち（自分のみ）", followers:"👥 フォロワーのみ"};
+const SC_SHORT = {all:"🌍 全員", wall:"🪞 自分のみ", followers:"👥 フォロワー"};
+const SC_LONG  = {all:"🌍 全員に公開", wall:"🪞 自分のみ（自分のみ）", followers:"👥 フォロワーのみ"};
 const SC_DESC  = {all:"すべてのユーザーに表示", wall:"自分だけが見られる日記", followers:"フォロワーだけに表示"};
 
 // ── サンプルデータ ──
 const INIT_POSTS = [
-  {id:0, user:"tecco公式", userId:"tecco_official", area:"県央", avatar:"🍀", childAges:[],
-   content:"teccoへようこそ！🍀\n岩手のパパママのためのSNSです。地域・月齢でつながって、子育ての悩みや楽しいことをシェアしましょう。\nまずは自己紹介投稿から始めてみてください😊",
-   time:"", likes:0, dislikes:0, scope:"all", tags:["はじめに"], comments:[]},
-  {id:-1, user:"tecco公式", userId:"tecco_official", area:"県央", avatar:"🍀", childAges:[],
-   content:"【使い方】📖\n🌍 全員公開：みんなに見せたい投稿\n🪞 壁打ち：自分だけの日記・ひとりごと\n👥 フォロワーのみ：フォロワーだけに見せたい投稿\n\n掲示板は匿名で書き込めます。デリケートな悩みもお気軽に🌿",
-   time:"", likes:0, dislikes:0, scope:"all", tags:["使い方"], comments:[]},
   {id:1,user:"もりおかまま",userId:"morioka_mama",area:"県央",avatar:"🌸",childAges:["0〜6ヶ月"],
    content:"夜泣きが続いて限界です😭 3ヶ月になったら楽になるって聞いてたのに…同じ月齢のママさんいますか？",
    time:"2分前",likes:12,dislikes:0,scope:"all",tags:["夜泣き","3ヶ月"],
@@ -378,7 +372,7 @@ function App() {
   const [filterArea,setFilterArea]   = useState("全域");
   const [filterAge,setFilterAge]     = useState("全員");
   const [boardCat,setBoardCat]       = useState("すべて");
-  const [posts,setPosts]             = useState(INIT_POSTS);
+  const [posts,setPosts]             = useState([]);
   const [boards,setBoards]           = useState(INIT_BOARDS);
   const [users]                      = useState(INIT_USERS);
   const [frozenIds,setFrozenIds]     = useState(new Set());
@@ -409,7 +403,7 @@ function App() {
   const [boardDraftText,setBoardDraftText] = useState("");
   const [composing,setComposing]           = useState(false);
   const [editProf,setEditProf]             = useState(false);
-  const [spots,setSpots]             = useState(INIT_SPOTS);
+  const [spots,setSpots]             = useState([]);
   const [spotArea,setSpotArea]       = useState("すべて");
   const [spotType,setSpotType]       = useState("すべて");
   const [openSpotId,setOpenSpotId]   = useState(null);
@@ -502,7 +496,7 @@ function App() {
           const dbPosts = postsData.map(p=>({
             id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
             childAges:JSON.parse(p.child_ages||"[]"),
-            content:p.content, time:new Date(p.created_at).toLocaleString("ja-JP"),
+            time: new Date(p.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
             likes:p.likes||0, dislikes:p.dislikes||0,
             scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
           }));
@@ -516,7 +510,7 @@ function App() {
           ...post,
           comments: commentsData.filter(c=>c.post_id===post.id).map(c=>({
             id:c.id, user:c.user, userId:c.user_id, avatar:c.avatar,
-            text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP"),
+            text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
           }))
         })));
       }
@@ -524,7 +518,7 @@ function App() {
       if (boardsData) {
         setBoards(boardsData.map(b=>({
           id:b.id, category:b.category, content:b.content,
-          time:new Date(b.created_at).toLocaleString("ja-JP"), comments:[],
+          time:new Date(b.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}), comments:[],
         })));
       }
       const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
@@ -606,7 +600,7 @@ function App() {
     setPosts(p=>[{
       id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
       childAges:JSON.parse(data.child_ages||"[]"),
-      content:data.content, time:"たった今",
+      content:data.content, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
       likes:0, dislikes:0, scope:data.scope,
       tags:JSON.parse(data.tags||"[]"), comments:[],
     }, ...p]);
@@ -627,7 +621,7 @@ function App() {
     }).select().single();
     if (error){console.log(error);return;}
     setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:[...x.comments,{
-      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text, time:"たった今",
+      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
     }]}));
     setCommentText("");
   };
@@ -639,11 +633,11 @@ function App() {
     }).select().single();
     if (error){
       // board_commentsテーブルがない場合はローカルで追加
-      setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:Date.now(),text:boardCommentText,time:"たった今"}]}));
+      setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:Date.now(),text:boardCommentText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
       setBoardCommentText("");
       return;
     }
-    setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:data.id,text:data.text,time:"たった今"}]}));
+    setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:data.id,text:data.text,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
     setBoardCommentText("");
   };
 
@@ -653,24 +647,24 @@ function App() {
       category:boardDraftCat, content:boardDraftText,
     }).select().single();
     if (error){console.log(error);return;}
-    setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:"たった今",comments:[]}, ...p]);
+    setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),comments:[]}, ...p]);
     setBoardDraftText("");setBoardComposing(false);
   };
   const handleReport = (postId,userName) => {
-    setReports(p=>[...p,{id:Date.now(),postId,userName,time:"たった今"}]);
+    setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]);
     alert("通報しました。運営が確認します。");
   };
   const freezeUser   = uid => setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
   const unfreezeUser = uid => setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
   const submitFeedback = () => {
     if (!feedbackText.trim()) return;
-    setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:"たった今"}]);
+    setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]);
     setFeedbackText("");setFeedbackSent(true);
     setTimeout(()=>setFeedbackSent(false),3000);
   };
   const submitSpotReview = spotId => {
     if (!spotReviewText.trim()) return;
-    setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:"たった今"}]}));
+    setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
     setSpotReviewText("");
   };
   const deleteBoard = id => setBoards(p=>p.filter(b=>b.id!==id));
@@ -981,7 +975,7 @@ function App() {
     const spot = spots.find(s=>s.id===viewSpot);
     const submitReview = () => {
       if (!spotReview.trim()) return;
-      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReview,time:"たった今"}]}:s));
+      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReview,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}:s));
       setSpotReview("");
     };
     return (
