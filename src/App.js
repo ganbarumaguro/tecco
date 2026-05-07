@@ -374,7 +374,7 @@ function App() {
   const [boardCat,setBoardCat]       = useState("すべて");
   const [posts,setPosts]             = useState([]);
   const [boards,setBoards]           = useState(INIT_BOARDS);
-  const [users]                      = useState(INIT_USERS);
+ const [users, setUsers]            = useState([]);
   const [frozenIds,setFrozenIds]     = useState(new Set());
   const [reports,setReports]         = useState([]);
   const [feedbacks,setFeedbacks]     = useState([]);
@@ -524,12 +524,39 @@ function App() {
           id:b.id, category:b.category, content:b.content,
           time:new Date(b.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}), comments:[],
         })));
+        const {data:boardCommentsData} = await supabase.from("board_comments").select("*").order("created_at",{ascending:true});
+      if (boardCommentsData) {
+        setBoards(p=>p.map(board=>({
+          ...board,
+          comments: boardCommentsData
+            .filter(c=>c.board_id===board.id)
+            .map(c=>({
+              id:c.id, text:c.text,
+              time:new Date(c.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+            }))
+        })));
       }
-      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
+      
+      }
+ const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
       if (spotsData) {
         setSpots(spotsData.map(sp=>({
           id:sp.id, name:sp.name, area:sp.area, type:sp.type,
           address:sp.address, memo:sp.memo, mapUrl:sp.map_url, reviews:[],
+        })));
+      }
+      const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
+      if (feedbacksData) {
+        setFeedbacks(feedbacksData.map(f=>({
+          id:f.id, text:f.text,
+          time:new Date(f.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+        })));
+      }
+      const {data:usersData} = await supabase.from("users").select("*");
+      if (usersData) {
+        setUsers(usersData.map(u=>({
+          userId:u.user_id, user:u.name, name:u.name,
+          avatar:u.avatar, area:u.area, bio:u.bio||"",
         })));
       }
       const savedUser = localStorage.getItem("tecco_user");
@@ -627,7 +654,10 @@ const toggleFollow = async userId => {
     const t=draftTag.trim().replace(/^#/,"");
     if (t&&!draftTags.includes(t)&&draftTags.length<5){setDraftTags(p=>[...p,t]);setDraftTag("");}
   };
-  const deletePost = id => setPosts(p=>p.filter(x=>x.id!==id));
+ const deletePost = async id => {
+    await supabase.from("posts").delete().eq("id", id);
+    setPosts(p=>p.filter(x=>x.id!==id));
+  };
   const deleteComment = (postId,cid) => setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
 
   const submitComment = async postId => {
@@ -667,17 +697,21 @@ const toggleFollow = async userId => {
     setBoardDraftText("");setBoardComposing(false);
   };
   const handleReport = (postId,userName) => {
-    setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]);
+    setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),checked:false}]);
     alert("通報しました。運営が確認します。");
   };
   const freezeUser   = uid => setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
   const unfreezeUser = uid => setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
-  const submitFeedback = () => {
+ const submitFeedback = async () => {
     if (!feedbackText.trim()) return;
-    setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]);
-    setFeedbackText("");setFeedbackSent(true);
+    const { error } = await supabase.from("feedbacks")
+      .insert({ text: feedbackText, user_id: profile.userId });
+    if (error) { console.log(error); return; }
+    setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]);
+    setFeedbackText(""); setFeedbackSent(true);
     setTimeout(()=>setFeedbackSent(false),3000);
   };
+
   const submitSpotReview = spotId => {
     if (!spotReviewText.trim()) return;
     setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
@@ -686,19 +720,31 @@ const toggleFollow = async userId => {
   const deleteBoard = id => setBoards(p=>p.filter(b=>b.id!==id));
   const [editingSpot,setEditingSpot] = useState(null); // 編集中のスポット
   const openEditSpot = sp => setEditingSpot({...sp});
-  const saveSpot = () => {
+  const saveSpot = async () => {
     if (!editingSpot.name.trim()) return;
     if (editingSpot.isNew) {
-      // 新規追加
-      const {isNew, ...spotData} = editingSpot;
-      setSpots(p=>[...p, {...spotData, reviews:[]}]);
+      const {isNew, reviews, ...spotData} = editingSpot;
+      const {data, error} = await supabase.from("spots").insert({
+        name:spotData.name, area:spotData.area, type:spotData.type,
+        address:spotData.address, memo:spotData.memo, map_url:spotData.mapUrl,
+      }).select().single();
+      if (error){console.log(error);return;}
+      setSpots(p=>[...p,{...spotData,id:data.id,reviews:[]}]);
     } else {
-      // 既存編集
+      const {error} = await supabase.from("spots").update({
+        name:editingSpot.name, area:editingSpot.area, type:editingSpot.type,
+        address:editingSpot.address, memo:editingSpot.memo, map_url:editingSpot.mapUrl,
+      }).eq("id",editingSpot.id);
+      if (error){console.log(error);return;}
       setSpots(p=>p.map(sp=>sp.id===editingSpot.id?editingSpot:sp));
     }
     setEditingSpot(null);
   };
-  const deleteSpot = id => setSpots(p=>p.filter(sp=>sp.id!==id));
+ const deleteSpot = async id => {
+    await supabase.from("spots").delete().eq("id", id);
+    setSpots(p=>p.filter(sp=>sp.id!==id));
+  };
+
   const openEditProf = () => {setProfDraft({...profile,children:profile.children.map(c=>({...c}))});setEditProf(true);};
 const saveProf = async () => {
     const { error } = await supabase.from("users")
@@ -1254,7 +1300,7 @@ const deleteChild = async () => {
                   <div style={s.userListAvatar}>{u.avatar}</div>
                   <div style={{flex:1}}>
                     <div style={s.userListName}>{u.user}</div>
-                    <div style={{fontSize:12,color:C.textMuted}}>@{u.userId} さんがフォローしました</div>
+                    <div style={{fontSize:12,color:C.textMuted}}>@{u.userId} さんをフォローしました</div>
                   </div>
                 </div>
               );
@@ -1389,13 +1435,18 @@ const deleteChild = async () => {
             </div>
             {isAdmin && (
               <>
-                <div style={{...s.secTitle,marginTop:8}}>⚙️ 管理者パネル</div>
+              <div style={{...s.secTitle,marginTop:8}}>⚙️ 管理者パネル</div>
                 <div style={s.adminPanel}>
                   <div style={s.adminTitle}>ユーザー管理（{users.length}名登録）</div>
                   {users.map(u=>(
                     <div key={u.userId} style={s.adminUserRow}>
-                      <span style={{fontSize:20}}>{u.avatar}</span>
-                      <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13,color:C.text}}>{u.name}</div><div style={{fontSize:11,color:C.textMuted}}>@{u.userId}</div></div>
+                      <button style={s.avatarBtn} onClick={()=>setViewUser(u)}>
+                        <span style={{fontSize:20}}>{u.avatar}</span>
+                      </button>
+                      <div style={{flex:1,cursor:"pointer"}} onClick={()=>setViewUser(u)}>
+                        <div style={{fontWeight:700,fontSize:13,color:C.text}}>{u.name}</div>
+                        <div style={{fontSize:11,color:C.textMuted}}>@{u.userId}</div>
+                      </div>
                       {frozenIds.has(u.userId)
                         ?<button style={s.adminUnfreezeBtn} onClick={()=>unfreezeUser(u.userId)}>凍結解除</button>
                         :<button style={s.adminFreezeBtn} onClick={()=>freezeUser(u.userId)}>凍結</button>}
@@ -1406,12 +1457,24 @@ const deleteChild = async () => {
                 <div style={s.adminPanel}>
                   <div style={s.adminTitle}>通報一覧（{reports.length}件）</div>
                   {reports.length===0 && <div style={{fontSize:13,color:C.textMuted}}>通報はありません</div>}
-                  {reports.map(r=><div key={r.id} style={{fontSize:13,padding:"6px 0",borderBottom:"1px solid #FFF3C4"}}>🚩 <strong>{r.userName}</strong> の投稿 — {r.time}</div>)}
-                </div>
-                <div style={s.adminPanel}>
-                  <div style={s.adminTitle}>フィードバック（{feedbacks.length}件）</div>
-                  {feedbacks.length===0 && <div style={{fontSize:13,color:C.textMuted}}>フィードバックはありません</div>}
-                  {feedbacks.map(f=><div key={f.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",lineHeight:1.5}}>💌 {f.text} <span style={{color:C.textMuted}}>— {f.time}</span></div>)}
+                 {reports.map(r=>{
+                    const reportedPost = posts.find(p=>p.id===r.postId);
+                    return (
+                      <div key={r.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",opacity:r.checked?0.5:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <input type="checkbox" checked={r.checked||false}
+                            onChange={()=>setReports(p=>p.map(x=>x.id===r.id?{...x,checked:!x.checked}:x))}/>
+                          <span>🚩 <strong>{r.userName}</strong> の投稿 — {r.time}</span>
+                          {r.checked && <span style={{fontSize:11,color:C.green,fontWeight:700}}>確認済み</span>}
+                        </div>
+                        {reportedPost && (
+                          <div style={{marginTop:4,padding:"6px 10px",background:"#FFF8E6",borderRadius:8,fontSize:12,color:C.textSub}}>
+                            「{reportedPost.content.slice(0,50)}{reportedPost.content.length>50?"…":""}」
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -1577,7 +1640,7 @@ const deleteChild = async () => {
           <div style={s.sectionPad}>
             <div style={s.formLabel}>種別</div>
             <div style={s.radioRow}>
-              {["支援センター","室内遊び場","公園","勉強スペース"].map(t=>(
+              {["支援センター","室内遊び場","公園","勉強スペース","その他"].map(t=>(
                 <button key={t} onClick={()=>setEditingSpot(p=>({...p,type:t}))}
                   style={{...s.radioBtn,background:editingSpot.type===t?C.coralPale:C.white,borderColor:editingSpot.type===t?C.coral:C.border,color:editingSpot.type===t?C.coral:C.textSub}}>{t}</button>
               ))}
