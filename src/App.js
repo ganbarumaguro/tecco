@@ -24,7 +24,7 @@ const BOARD_ICONS  = {"育児相談":"💬","発達・先天障害":"🌈","妊�
 const ADMIN_ID    = "admin";
 const OFFICIAL_ID = "tecco_official";
 
-const SPOT_TYPES   = ["すべて","支援センター","室内遊び場","公園","勉強スペース"];
+const SPOT_TYPES   = ["すべて","支援センター","室内遊び場","公園","勉強スペース","その他"];
 const AGE_MAP = {
   "妊婦":["妊娠中","妊娠"],
   "0〜6ヶ月":["0〜6ヶ月","0ヶ月","1ヶ月","2ヶ月","3ヶ月","4ヶ月","5ヶ月","6ヶ月"],
@@ -462,9 +462,9 @@ function App() {
     const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
     if (error||!data){setLoginError("このIDは登録されていません");return;}
     if (data.password!==loginPw){setLoginError("パスワードが違います");return;}
-    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:[]});
-    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:[]}));
-    setTab("timeline");setScreen("main");
+   setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
+    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
+
   };
 
   const handleSignup = async () => {
@@ -496,27 +496,25 @@ function App() {
       setProfile(JSON.parse(saved));
       setScreen("main");
     }
-
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
       if (postsData) {
         setPosts(postsData.map(p=>({
-    id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
-  childAges:JSON.parse(p.child_ages||"[]"),
-  content:p.content,
-  time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-  likes:p.likes||0, dislikes:p.dislikes||0,
-  scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
-})));
-
+          id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
+          childAges:JSON.parse(p.child_ages||"[]"),
+          content:p.content,
+          time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+          likes:p.likes||0, dislikes:p.dislikes||0,
+          scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
+        })));
       }
-      const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:false});
+      const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
       if (commentsData) {
         setPosts(p=>p.map(post=>({
           ...post,
           comments: commentsData.filter(c=>c.post_id===post.id).map(c=>({
             id:c.id, user:c.user, userId:c.user_id, avatar:c.avatar,
-            text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
+            text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
           }))
         })));
       }
@@ -524,15 +522,21 @@ function App() {
       if (boardsData) {
         setBoards(boardsData.map(b=>({
           id:b.id, category:b.category, content:b.content,
-          time:new Date(b.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}), comments:[],
+          time:new Date(b.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}), comments:[],
         })));
       }
-      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:false});
+      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
       if (spotsData) {
         setSpots(spotsData.map(sp=>({
           id:sp.id, name:sp.name, area:sp.area, type:sp.type,
           address:sp.address, memo:sp.memo, mapUrl:sp.map_url, reviews:[],
         })));
+      }
+      const savedUser = localStorage.getItem("tecco_user");
+      if (savedUser) {
+        const {userId} = JSON.parse(savedUser);
+        const {data:followsData} = await supabase.from("follows").select("following_id").eq("follower_id",userId||"");
+        if (followsData) setFollowing(followsData.map(f=>f.following_id));
       }
     };
     fetchAll();
@@ -584,15 +588,21 @@ function App() {
     }
   };
 
-  const toggleFollow = userId => {
-    setFollowing(p => {
-      if (p.includes(userId)) return p.filter(id=>id!==userId);
-      setNewFollowers(prev => prev.includes(userId) ? prev : [...prev, userId]);
+const toggleFollow = async userId => {
+    if (following.includes(userId)) {
+      await supabase.from("follows")
+        .delete()
+        .eq("follower_id", profile.userId)
+        .eq("following_id", userId);
+      setFollowing(p=>p.filter(id=>id!==userId));
+    } else {
+      await supabase.from("follows")
+        .insert({follower_id:profile.userId, following_id:userId});
+      setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
       setSeenNotif(false);
-      return [...p, userId];
-    });
+      setFollowing(p=>[...p,userId]);
+    }
   };
-
   const submitPost = async () => {
     if (!draftText.trim()) return;
     const {data,error} = await supabase.from("posts").insert({
@@ -690,16 +700,46 @@ function App() {
   };
   const deleteSpot = id => setSpots(p=>p.filter(sp=>sp.id!==id));
   const openEditProf = () => {setProfDraft({...profile,children:profile.children.map(c=>({...c}))});setEditProf(true);};
-  const saveProf = () => {setProfile(profDraft);setEditProf(false);};
+const saveProf = async () => {
+    const { error } = await supabase.from("users")
+      .update({
+        name: profDraft.name,
+        area: profDraft.area,
+        avatar: profDraft.avatar,
+        bio: profDraft.bio,
+      })
+      .eq("user_id", profDraft.userId);
+    if (error) { console.log(error); return; }
+    setProfile(profDraft);
+    localStorage.setItem("tecco_user", JSON.stringify(profDraft));
+    setEditProf(false);
+  };
   const openAddChild = () => {setChildDraft({id:Date.now(),name:"",age:"0〜6ヶ月",gender:"女の子"});setChildMode("new");};
   const openEditChild = c => {setChildDraft({...c});setChildMode("edit");};
-  const saveChild = () => {
+ const saveChild = async () => {
     if (!childDraft.name.trim()) return;
-    setProfile(p=>({...p,children:childMode==="new"?[...p.children,childDraft]:p.children.map(c=>c.id===childDraft.id?childDraft:c)}));
+    const newChildren = childMode==="new"
+      ? [...profile.children, childDraft]
+      : profile.children.map(c=>c.id===childDraft.id?childDraft:c);
+    const { error } = await supabase.from("users")
+      .update({ children: JSON.stringify(newChildren) })
+      .eq("user_id", profile.userId);
+    if (error) { console.log(error); return; }
+    setProfile(p=>({...p, children:newChildren}));
+    localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
     setChildMode(null);
   };
-  const deleteChild = () => {setProfile(p=>({...p,children:p.children.filter(c=>c.id!==childDraft.id)}));setChildMode(null);};
-
+const deleteChild = async () => {
+    const newChildren = profile.children.filter(c=>c.id!==childDraft.id);
+    const { error } = await supabase.from("users")
+      .update({ children: JSON.stringify(newChildren) })
+      .eq("user_id", profile.userId);
+    if (error) { console.log(error); return; }
+    setProfile(p=>({...p, children:newChildren}));
+    localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
+    setChildMode(null);
+  };
+  
   const pcp = post => ({
     post, liked:likedIds.has(post.id), disliked:dislikedIds.has(post.id),
     onLike:toggleLike, onDislike:toggleDislike,
