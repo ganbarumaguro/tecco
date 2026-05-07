@@ -463,6 +463,7 @@ function App() {
     if (error||!data){setLoginError("このIDは登録されていません");return;}
     if (data.password!==loginPw){setLoginError("パスワードが違います");return;}
     setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:[]});
+    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:[]}));
     setTab("timeline");setScreen("main");
   };
 
@@ -476,6 +477,7 @@ function App() {
     const {error} = await supabase.from("users").insert({user_id:signupId,name:signupName,area:signupArea,avatar:signupAvatar,bio:"",password:signupPw});
     if (error){setSignupError("登録に失敗しました");console.log(error);return;}
     setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
+    localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
     setFollowing([OFFICIAL_ID]);
     setTab("timeline");setScreen("main");
   };
@@ -489,22 +491,26 @@ function App() {
 
   // ── Supabaseデータ読み込み ──
   useEffect(() => {
+    const saved = localStorage.getItem("tecco_user");
+    if (saved) {
+      setProfile(JSON.parse(saved));
+      setScreen("main");
+    }
+
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
       if (postsData) {
-        setPosts(prev => {
-          const dbPosts = postsData.map(p=>({
-            id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
-            childAges:JSON.parse(p.child_ages||"[]"),
-            time: new Date(p.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
-            likes:p.likes||0, dislikes:p.dislikes||0,
-            scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
-          }));
-          const officialPosts = prev.filter(p=>p.userId===OFFICIAL_ID);
-          return [...officialPosts, ...dbPosts];
-        });
+        setPosts(postsData.map(p=>({
+    id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
+  childAges:JSON.parse(p.child_ages||"[]"),
+  content:p.content,
+  time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+  likes:p.likes||0, dislikes:p.dislikes||0,
+  scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
+})));
+
       }
-      const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
+      const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:false});
       if (commentsData) {
         setPosts(p=>p.map(post=>({
           ...post,
@@ -521,7 +527,7 @@ function App() {
           time:new Date(b.created_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}), comments:[],
         })));
       }
-      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
+      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:false});
       if (spotsData) {
         setSpots(spotsData.map(sp=>({
           id:sp.id, name:sp.name, area:sp.area, type:sp.type,
