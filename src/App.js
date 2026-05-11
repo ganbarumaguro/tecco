@@ -380,7 +380,7 @@ function App() {
   const [posts,setPosts]             = useState([]);
   const [boards,setBoards]           = useState([]);
  const [users, setUsers]            = useState([]);
-  const [frozenIds,setFrozenIds]     = useState(new Set());
+ const [frozenIds, setFrozenIds] = useState(new Set());   
   const [reports,setReports]         = useState([]);
   const [feedbacks,setFeedbacks]     = useState([]);
   const [likedIds,setLikedIds]       = useState(new Set());
@@ -470,7 +470,8 @@ function App() {
     const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
     if (error||!data){setLoginError("このIDは登録されていません");return;}
     if (data.password!==loginPw){setLoginError("パスワードが違います");return;}
-   setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
+    if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
+    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
     localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
     setTab("timeline");setScreen("main");
   };
@@ -569,6 +570,8 @@ function App() {
           userId:u.user_id, user:u.name, name:u.name,
           avatar:u.avatar, area:u.area, bio:u.bio||"",
         })));
+       const frozenUsers = usersData.filter(u=>u.is_frozen).map(u=>u.user_id);
+      setFrozenIds(new Set(frozenUsers)); 
       }
       const savedUser = localStorage.getItem("tecco_user");
       if (savedUser) {
@@ -753,9 +756,14 @@ const deleteComment = async (postId,cid) => {
     setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),checked:false}]);
     alert("通報しました。運営が確認します。");
   };
-  const freezeUser   = uid => setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
-  const unfreezeUser = uid => setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
- const submitFeedback = async () => {
+const freezeUser = async uid => {
+    await supabase.from("users").update({is_frozen:true}).eq("user_id",uid);
+    setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
+  };
+  const unfreezeUser = async uid => {
+    await supabase.from("users").update({is_frozen:false}).eq("user_id",uid);
+    setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
+  }; const submitFeedback = async () => {
     if (!feedbackText.trim()) return;
     const { error } = await supabase.from("feedbacks")
       .insert({ text: feedbackText, user_id: profile.userId });
