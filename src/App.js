@@ -332,8 +332,8 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         </div>
       )}
       <div style={s.actions}>
-        <button style={{...s.actionBtn,color:liked?C.red:C.textSub}} onClick={()=>onLike(post.id)}>{liked?"❤️":"🤍"} {post.likes+(liked?1:0)}</button>
-        <button style={{...s.actionBtn,color:disliked?C.purple:C.textSub}} onClick={()=>onDislike(post.id)}>{disliked?"💔":"🖤"} {post.dislikes+(disliked?1:0)}</button>
+        <button style={{...s.actionBtn,color:liked?C.red:C.textSub}} onClick={()=>onLike(post.id)}>{liked?"❤️":"🤍"} {post.likes}</button>
+        <button style={{...s.actionBtn,color:disliked?C.purple:C.textSub}} onClick={()=>onDislike(post.id)}>{disliked?"💔":"🖤"} {post.dislikes}</button>
         <button style={s.actionBtn} onClick={onToggleComments}>💬 {post.comments.length}</button>
         <button style={s.menuBtn} onClick={()=>setMenuOpen(v=>!v)}>▾ メニュー</button>
       </div>
