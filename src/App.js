@@ -289,7 +289,7 @@ function Overlay({children, onClose, scrollable}) {
 }
 
 // ── PostCard ──
-function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine}) {
+function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine,profileUserId}) {
   const [menuOpen,setMenuOpen] = useState(false);
   const uInfo = {user:post.user,userId:post.userId,avatar:post.avatar,area:post.area};
   return (
@@ -341,14 +341,19 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         <div style={s.commentSection}>
           {post.comments.map(c=>(
             <div key={c.id} style={s.commentRow}>
-              <div style={s.commentAvatar}>{c.avatar}</div>
+              <div style={{...s.commentAvatar,cursor:"pointer"}}
+                onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
+                {c.avatar}
+              </div>
               <div style={{flex:1}}>
                 <div style={s.commentNameRow}>
-                  <span style={s.commentUser}>{c.user}</span>
+                  <span style={{...s.commentUser,cursor:"pointer"}}
+                    onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
+                    {c.user}
+                  </span>
                   <span style={s.commentUserId}>@{c.userId}</span>
-                  {(c.userId===post.userId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
                 </div>
-                <div style={s.commentText}>{c.text}</div>
+{(c.userId===post.userId||c.userId===profileUserId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
                 <div style={s.commentTime}>{c.time}</div>
               </div>
             </div>
@@ -373,7 +378,7 @@ function App() {
   const [filterAge,setFilterAge]     = useState("全員");
   const [boardCat,setBoardCat]       = useState("すべて");
   const [posts,setPosts]             = useState([]);
-  const [boards,setBoards]           = useState(INIT_BOARDS);
+  const [boards,setBoards]           = useState([]);
  const [users, setUsers]            = useState([]);
   const [frozenIds,setFrozenIds]     = useState(new Set());
   const [reports,setReports]         = useState([]);
@@ -428,11 +433,13 @@ function App() {
   const [showPrivacy,setShowPrivacy] = useState(false);   // PPモーダル
   const [agreedTerms,setAgreedTerms] = useState(false);   // 利用規約同意
   const [agreedPrivacy,setAgreedPrivacy] = useState(false); // PP同意
+  const [notifications, setNotifications] = useState([]);
 
   const isAdmin = profile?.userId === ADMIN_ID;
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
   const followerList  = [];
+
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -450,7 +457,8 @@ function App() {
   }, 0);
 
   // 通知バッジ：未確認の新しいフォロワー数
-  const notifBadge = seenNotif ? 0 : newFollowers.length;
+  const notifBadge = seenNotif ? 0 : notifications.length;
+
 
   const handleLogin = async () => {
     setLoginError("");
@@ -464,7 +472,7 @@ function App() {
     if (data.password!==loginPw){setLoginError("パスワードが違います");return;}
    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
     localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
-
+    setTab("timeline");setScreen("main");
   };
 
   const handleSignup = async () => {
@@ -482,7 +490,8 @@ function App() {
     setTab("timeline");setScreen("main");
   };
 
-  const handleLogout = () => {
+ const handleLogout = () => {
+    localStorage.removeItem("tecco_user");
     setProfile(null);setFollowing([]);
     setLikedIds(new Set());setDislikedIds(new Set());
     setTagSearch(null);setViewUser(null);setTab("timeline");
@@ -574,70 +583,81 @@ function App() {
           if (likesData) {
             setLikedIds(new Set(likesData.filter(l=>l.type==="like").map(l=>l.post_id)));
             setDislikedIds(new Set(likesData.filter(l=>l.type==="dislike").map(l=>l.post_id)));
-          }
+         }
+        }
+      }
+      if (savedUser) {
+        const {userId} = JSON.parse(savedUser);
+        if (userId) {
+          const {data:notifsData} = await supabase.from("notifications")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", {ascending:false});
+          if (notifsData) setNotifications(notifsData);
         }
       }
     };
     fetchAll();
   }, []);
 
-  const toggleLike = async id => {
+ const toggleLike = async id => {
     const isLiked = likedIds.has(id);
     const post = posts.find(x=>x.id===id);
     if (!post) return;
     if (isLiked) {
       await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","like");
-            setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-      
+      setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+      setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:post.likes-1}));
     } else {
       await supabase.from("likes").insert({post_id:id,user_id:profile.userId,type:"like"});
-            setLikedIds(p=>{const n=new Set(p);n.add(id);return n;});
-      
+      if (post.userId!==profile.userId) {
+        await supabase.from("notifications").insert({
+          user_id:post.userId, type:"like", from_user:profile.name,
+          from_avatar:profile.avatar, post_id:id,
+          message:`${profile.name}さんがあなたの投稿にいいねしました`,
+        });
+      }
+      setLikedIds(p=>{const n=new Set(p);n.add(id);return n;});
+      setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:post.likes+1}));
       if (dislikedIds.has(id)) {
         await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","dislike");
-        await supabase.from("posts").update({dislikes:post.dislikes-1}).eq("id",id);
         setDislikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
         setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes-1}));
       }
     }
+    // 通知をリアルタイムで反映
+    const saved = localStorage.getItem("tecco_user");
+    if (saved) {
+      const {userId} = JSON.parse(saved);
+      const {data:notifsData} = await supabase.from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", {ascending:false});
+      if (notifsData) setNotifications(notifsData);
+    }
   };
+
 const toggleDislike = async id => {
     const isDisliked = dislikedIds.has(id);
     const post = posts.find(x=>x.id===id);
     if (!post) return;
     if (isDisliked) {
       await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","dislike");
-      
       setDislikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
       setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes-1}));
     } else {
       await supabase.from("likes").insert({post_id:id,user_id:profile.userId,type:"dislike"});
-      await supabase.from("posts").update({dislikes:post.dislikes+1}).eq("id",id);
       setDislikedIds(p=>{const n=new Set(p);n.add(id);return n;});
-      
+      setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes+1}));
       if (likedIds.has(id)) {
         await supabase.from("likes").delete().eq("post_id",id).eq("user_id",profile.userId).eq("type","like");
-                setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
-        
+        setLikedIds(p=>{const n=new Set(p);n.delete(id);return n;});
+        setPosts(p=>p.map(x=>x.id!==id?x:{...x,likes:post.likes-1}));
       }
     }
   };
 
-const toggleFollow = async userId => {
-    if (following.includes(userId)) {
-      await supabase.from("follows")
-        .delete()
-        .eq("follower_id", profile.userId)
-        .eq("following_id", userId);
-      setFollowing(p=>p.filter(id=>id!==userId));
-    } else {
-      await supabase.from("follows")
-        .insert({follower_id:profile.userId, following_id:userId});
-      setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
-      setSeenNotif(false);
-      setFollowing(p=>[...p,userId]);
-    }
-  };
+
   const submitPost = async () => {
     if (!draftText.trim()) return;
     const {data,error} = await supabase.from("posts").insert({
@@ -666,19 +686,44 @@ const toggleFollow = async userId => {
     await supabase.from("posts").delete().eq("id", id);
     setPosts(p=>p.filter(x=>x.id!==id));
   };
-  const deleteComment = (postId,cid) => setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
+const deleteComment = async (postId,cid) => {
+    await supabase.from("comments").delete().eq("id", cid);
+    setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
+  };
 
   const submitComment = async postId => {
-    if (!commentText.trim()) return;
+     if (!commentText.trim()) return;
     const {data,error} = await supabase.from("comments").insert({
       post_id:postId, user:profile.name, user_id:profile.userId, avatar:profile.avatar, text:commentText,
     }).select().single();
     if (error){console.log(error);return;}
+    const post = posts.find(x=>x.id===postId);
+    console.log("post:", post);
+    console.log("post.userId:", post?.userId);
+    console.log("profile.userId:", profile.userId);
+    if (post) {
+      await supabase.from("notifications").insert({
+        user_id:post.userId, type:"comment", from_user:profile.name,
+        from_avatar:profile.avatar, post_id:postId,
+        message:`${profile.name}さんがあなたの投稿にコメントしました`,
+      });
+    }
     setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:[...x.comments,{
-      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
+      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
     }]}));
     setCommentText("");
+    // 通知をリアルタイムで反映
+    const saved = localStorage.getItem("tecco_user");
+    if (saved) {
+      const {userId} = JSON.parse(saved);
+      const {data:notifsData} = await supabase.from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", {ascending:false});
+      if (notifsData) setNotifications(notifsData);
+    }
   };
+
 
   const submitBoardComment = async boardId => {
     if (!boardCommentText.trim()) return;
@@ -794,7 +839,42 @@ const deleteChild = async () => {
     setChildMode(null);
   };
   
-  const pcp = post => ({
+const toggleFollow = async userId => {
+    if (following.includes(userId)) {
+      await supabase.from("follows")
+        .delete()
+        .eq("follower_id", profile.userId)
+        .eq("following_id", userId);
+      setFollowing(p=>p.filter(id=>id!==userId));
+    } else {
+      await supabase.from("follows")
+        .insert({follower_id:profile.userId, following_id:userId});
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        type: "follow",
+        from_user: profile.name,
+        from_avatar: profile.avatar,
+        post_id: null,
+        message: `${profile.name}さんがあなたをフォローしました`,
+      });
+      setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
+      setSeenNotif(false);
+      setFollowing(p=>[...p,userId]);
+    }
+    // 通知をリアルタイムで反映
+    const saved = localStorage.getItem("tecco_user");
+    if (saved) {
+      const {userId} = JSON.parse(saved);
+      const {data:notifsData} = await supabase.from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", {ascending:false});
+      if (notifsData) setNotifications(notifsData);
+    }
+  };
+
+
+ const pcp = post => ({
     post, liked:likedIds.has(post.id), disliked:dislikedIds.has(post.id),
     onLike:toggleLike, onDislike:toggleDislike,
     onUserClick:u=>setViewUser(u),
@@ -804,6 +884,7 @@ const deleteChild = async () => {
     commentText, onCommentChange:setCommentText, onCommentSubmit:submitComment,
     onDelete:deletePost, onDeleteComment:deleteComment, onReport:handleReport,
     isAdmin, isMine:post.userId===profile?.userId,
+    profileUserId:profile?.userId,
   });
 
   const visiblePosts = posts.filter(p=>{
@@ -1294,27 +1375,29 @@ const deleteChild = async () => {
           </>
         )}
 
-        {tab==="notif" && (
+     {tab==="notif" && (
           <>
             <div style={s.secTitle}>🔔 通知</div>
-            {newFollowers.length===0 && (
+            {notifications.length===0 && (
               <div style={s.emptyMsg}>まだ通知はありません</div>
             )}
-            {newFollowers.map((uid,i)=>{
-              const u = allKnownUsers.find(x=>x.userId===uid);
-              if (!u) return null;
-              return (
-                <div key={i} style={{...s.userListItem, background:C.white, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${C.border}`}}>
-                  <div style={s.userListAvatar}>{u.avatar}</div>
-                  <div style={{flex:1}}>
-                    <div style={s.userListName}>{u.user}</div>
-                    <div style={{fontSize:12,color:C.textMuted}}>@{u.userId} さんをフォローしました</div>
+            {notifications.map(n=>(
+              <div key={n.id} style={{...s.userListItem, background:C.white, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:22, marginRight:8, flexShrink:0}}>
+                  {n.type==="like"?"❤️":n.type==="comment"?"💬":"👥"}
+                </div>
+                <div style={s.userListAvatar}>{n.from_avatar}</div>
+                <div style={{flex:1, marginLeft:8}}>
+                  <div style={{fontSize:13,color:C.text,fontWeight:600}}>{n.message}</div>
+                  <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+                    {new Date(n.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}
                   </div>
                 </div>
-              );
-            })}
-          </>
+              </div>
+            ))}
+            </>
         )}
+
 
         {tab==="board"&&!tagSearch && (
           <>
