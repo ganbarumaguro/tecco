@@ -3,9 +3,9 @@ import { supabase } from "./supabase";
 
 
 
-// ── デザイントークン ──
+// ── デザイントークン ── 
 const C = {
-  coral:"#E8856A", coralLight:"#F2A48E", coralPale:"#FCEAE4", coralBg:"#FDF6F3",
+  coral:"#F5C97A", coralLight:"#F7D88B", coralPale:"#FEF7E6", coralBg:"#FEFBF0",
   white:"#FFFFFF", beige:"#F7F2EE", beigeLight:"#FAF7F4", border:"#EDE5DF",
   text:"#3D2E28", textSub:"#8C7B74", textMuted:"#B5A8A2",
   purple:"#7C6FF7", purplePale:"#EDEBFE",
@@ -40,58 +40,6 @@ const SC_COLOR = {all:C.green, wall:C.coral, followers:C.purple};
 const SC_SHORT = {all:"🌍 全員", wall:"🪞 自分のみ", followers:"👥 フォロワー"};
 const SC_LONG  = {all:"🌍 全員に公開", wall:"🪞 自分のみ（自分のみ）", followers:"👥 フォロワーのみ"};
 const SC_DESC  = {all:"すべてのユーザーに表示", wall:"自分だけが見られる日記", followers:"フォロワーだけに表示"};
-
-// ── サンプルデータ ──
-const INIT_POSTS = [
-  {id:1,user:"もりおかまま",userId:"morioka_mama",area:"県央",avatar:"🌸",childAges:["0〜6ヶ月"],
-   content:"夜泣きが続いて限界です😭 3ヶ月になったら楽になるって聞いてたのに…同じ月齢のママさんいますか？",
-   time:"2分前",likes:12,dislikes:0,scope:"all",tags:["夜泣き","3ヶ月"],
-   comments:[{id:101,user:"はなまきん",userId:"hanamaki_n",avatar:"🌻",text:"うちも3ヶ月のとき同じでした！もう少しで楽になりますよ🌸",time:"1分前"}]},
-  {id:2,user:"はなまきん",userId:"hanamaki_n",area:"県南",avatar:"🌻",childAges:["6〜12ヶ月"],
-   content:"離乳食中期スタートしました！花巻で離乳食教室やってるとこ知ってる方いませんか？",
-   time:"15分前",likes:8,dislikes:0,scope:"all",tags:["離乳食","花巻"],comments:[]},
-  {id:3,user:"いちのへまま",userId:"ichinohe_m",area:"県北",avatar:"🍀",childAges:["1〜2歳"],
-   content:"イヤイヤ期突入…ごはんも着替えも全部「いや！」。田舎だから支援センターもなくて孤独だな〜😮‍💨",
-   time:"32分前",likes:24,dislikes:0,scope:"wall",tags:["イヤイヤ期","田舎育児"],
-   comments:[{id:201,user:"みやこまま",userId:"miyako_mama",avatar:"🐟",text:"わかりすぎます…オンラインでよければ話しましょ！",time:"20分前"}]},
-  {id:4,user:"みやこまま",userId:"miyako_mama",area:"沿岸",avatar:"🐟",childAges:["0〜6ヶ月"],
-   content:"おすすめの育児スポットはどこですか？宮古周辺で穴場があれば教えてほしいです🌊",
-   time:"1時間前",likes:41,dislikes:0,scope:"all",tags:["宮古","授乳"],comments:[]},
-  {id:5,user:"きたかみん",userId:"kitakami_n",area:"県南",avatar:"🌺",childAges:["妊娠中"],
-   content:"もうすぐ出産！teccoで産後も繋がれるといいな🤰 同じ時期のプレママさん教えてください〜",
-   time:"2時間前",likes:17,dislikes:0,scope:"all",tags:["妊婦","プレママ"],comments:[]},
-];
-const INIT_BOARDS = [
-  {id:1,category:"育児相談",content:"1歳半健診で要観察になりました。同じ経験のある方、その後どうでしたか？",time:"30分前",
-   comments:[{id:301,text:"うちも同じでした。半年後の再健診で問題なしでしたよ。",time:"15分前"}]},
-  {id:2,category:"妊活・産院",content:"2人目不妊で治療中です。岩手で評判いいクリニック教えてください",time:"3時間前",comments:[]},
-  {id:3,category:"発達・先天障害",content:"特別支援学校と普通学級どちらにするか悩んでいます。盛岡近辺で相談できるところありますか",time:"昨日",
-   comments:[{id:401,text:"盛岡市内に相談窓口があります。市の教育委員会に問い合わせると案内してもらえました。",time:"23時間前"}]},
-  {id:4,category:"家族問題",content:"育児中の夫婦のコミュニケーション、みなさんどうしてますか？喧嘩が増えて悩んでいます。",time:"2日前",comments:[]},
-];
-const INIT_SPOTS = [
-  // 県央
-  {id:1, name:"もりおか子ども図書館", area:"県央", type:"支援センター", address:"盛岡市本宮2-1-1", memo:"絵本が充実。0歳から使えて授乳室あり。", mapUrl:"https://maps.google.com/?q=盛岡市本宮2-1-1", reviews:[]},
-  {id:2, name:"岩手県立児童館いわて子どもの森", area:"県央", type:"室内遊び場", address:"岩手郡滝沢市砂込1番地2", memo:"雨の日でも遊べる大型施設。小学生まで楽しめる。", mapUrl:"https://maps.google.com/?q=岩手子どもの森", reviews:[]},
-  {id:3, name:"高松公園", area:"県央", type:"公園", address:"盛岡市高松1丁目", memo:"桜の名所。広い芝生で子どもが走り回れる。", mapUrl:"https://maps.google.com/?q=盛岡高松公園", reviews:[]},
-  // 県南
-  {id:4, name:"花巻市子育て支援センターはなまき", area:"県南", type:"支援センター", address:"花巻市花城町1-41", memo:"スタッフが丁寧。月齢別の集まりがある。", mapUrl:"https://maps.google.com/?q=花巻市子育て支援センター", reviews:[]},
-  {id:5, name:"北上市立公園展勝地", area:"県南", type:"公園", address:"北上市立花町", memo:"桜の季節は最高。ベビーカーでも歩きやすい。", mapUrl:"https://maps.google.com/?q=展勝地", reviews:[]},
-  {id:6, name:"一関市児童センター", area:"県南", type:"室内遊び場", address:"一関市竹山町4-10", memo:"雨の日の定番。乳幼児コーナーあり。", mapUrl:"https://maps.google.com/?q=一関市児童センター", reviews:[]},
-  // 県北
-  {id:7, name:"二戸市子育て支援センター", area:"県北", type:"支援センター", address:"二戸市石切所字荒沢10-1", memo:"アットホームな雰囲気。相談しやすい。", mapUrl:"https://maps.google.com/?q=二戸市子育て支援センター", reviews:[]},
-  {id:8, name:"九戸村ふれあい広場", area:"県北", type:"公園", address:"九戸郡九戸村伊保内", memo:"のびのび遊べる。地元ならではのゆったり感。", mapUrl:"https://maps.google.com/?q=九戸村ふれあい広場", reviews:[]},
-  // 沿岸
-  {id:9, name:"宮古市子育て支援センター結", area:"沿岸", type:"支援センター", address:"宮古市五月町2-20", memo:"海沿いの街ならではの温かさ。プレパパも来やすい。", mapUrl:"https://maps.google.com/?q=宮古市子育て支援センター", reviews:[]},
-  {id:10, name:"大船渡市立公園おおふなと夢商店街広場", area:"沿岸", type:"公園", address:"大船渡市大船渡町野々田15-1", memo:"海が見える公園。天気のいい日は最高。", mapUrl:"https://maps.google.com/?q=大船渡夢商店街広場", reviews:[]},
-];
-const INIT_USERS = [
-  {userId:"morioka_mama",user:"もりおかまま",avatar:"🌸",area:"県央",bio:"はると（3ヶ月）のママ🌱"},
-  {userId:"hanamaki_n",  user:"はなまきん",  avatar:"🌻",area:"県南",bio:"花巻在住、8ヶ月の女の子のまま"},
-  {userId:"ichinohe_m",  user:"いちのへまま",avatar:"🍀",area:"県北",bio:"県北でひとりでがんばってます"},
-  {userId:"miyako_mama", user:"みやこまま",  avatar:"🐟",area:"沿岸",bio:"宮古の海が好き🌊"},
-  {userId:"kitakami_n",  user:"きたかみん",  avatar:"🌺",area:"県南",bio:"プレママです！よろしくお願いします"},
-];
 
 // ── スタイル ──
 const s = {
@@ -258,7 +206,6 @@ const s = {
   donateTitle:{fontWeight:800,fontSize:16,color:C.coral,marginBottom:6},
   donateDesc:{fontSize:13,color:C.textSub,lineHeight:1.6,marginBottom:14},
   donateBtn:{display:"inline-block",padding:"12px 32px",background:C.coral,color:C.white,border:"none",borderRadius:20,fontSize:15,fontWeight:800,cursor:"pointer"},
-  // スポットマップ
   spotFilterBar:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12},
   spotFilterBtn:{padding:"6px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer"},
   spotCard:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid ${C.border}`,boxShadow:"0 1px 6px rgba(0,0,0,0.05)"},
@@ -379,14 +326,15 @@ function App() {
   const [boardCat,setBoardCat]       = useState("すべて");
   const [posts,setPosts]             = useState([]);
   const [boards,setBoards]           = useState([]);
- const [users, setUsers]            = useState([]);
- const [frozenIds, setFrozenIds] = useState(new Set());   
+  const [users, setUsers]            = useState([]);
+  const [frozenIds, setFrozenIds] = useState(new Set());   
   const [reports,setReports]         = useState([]);
   const [feedbacks,setFeedbacks]     = useState([]);
   const [likedIds,setLikedIds]       = useState(new Set());
   const [dislikedIds,setDislikedIds] = useState(new Set());
   const [profile,setProfile]         = useState(null);
   const [following,setFollowing]     = useState([]);
+  const [followerIds, setFollowerIds] = useState([]);
   const [lastSeenTimeline,setLastSeenTimeline] = useState(Date.now()); // タイムライン最終閲覧時刻
   const [lastSeenBoard,setLastSeenBoard]       = useState(Date.now()); // 掲示板最終閲覧時刻
   const [newFollowers,setNewFollowers]         = useState([]); // 新しいフォロワーのuserId一覧
@@ -434,12 +382,11 @@ function App() {
   const [agreedTerms,setAgreedTerms] = useState(false);   // 利用規約同意
   const [agreedPrivacy,setAgreedPrivacy] = useState(false); // PP同意
   const [notifications, setNotifications] = useState([]);
-
+  const [blockedIds, setBlockedIds] = useState([]);
   const isAdmin = profile?.userId === ADMIN_ID;
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
-  const followerList  = [];
-
+  const followerList = allKnownUsers.filter(u => followerIds.includes(u.userId));
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -459,7 +406,7 @@ function App() {
   // 通知バッジ：未確認の新しいフォロワー数
   const notifBadge = seenNotif ? 0 : notifications.length;
 
-
+  // ログイン
   const handleLogin = async () => {
     setLoginError("");
     if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
@@ -476,6 +423,7 @@ function App() {
     setTab("timeline");setScreen("main");
   };
 
+  //　サインアップ
   const handleSignup = async () => {
     setSignupError("");
     if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
@@ -484,7 +432,7 @@ function App() {
     const {data:existing} = await supabase.from("users").select("user_id").eq("user_id",signupId).single();
     if (existing){setSignupError("このIDはすでに使われています");return;}
     const {error} = await supabase.from("users").insert({user_id:signupId,name:signupName,area:signupArea,avatar:signupAvatar,bio:"",password:signupPw});
-    if (error){setSignupError("登録に失敗しました");console.log(error);return;}
+    if (error){setSignupError("登録に失敗しました");　return; }
     setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
     localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
     setFollowing([OFFICIAL_ID]);
@@ -506,6 +454,7 @@ function App() {
       setProfile(JSON.parse(saved));
       setScreen("main");
     }
+
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
       const {data:likesCount} = await supabase.from("likes").select("post_id, type");
@@ -548,9 +497,8 @@ function App() {
             }))
         })));
       }
-
-      }
- const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
+    }
+      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
       if (spotsData) {
         setSpots(spotsData.map(sp=>({
           id:sp.id, name:sp.name, area:sp.area, type:sp.type,
@@ -558,6 +506,7 @@ function App() {
         })));
       }
       const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
+      //console.log("feedbacksData:", feedbacksData);
       if (feedbacksData) {
         setFeedbacks(feedbacksData.map(f=>({
           id:f.id, text:f.text,
@@ -570,7 +519,7 @@ function App() {
           userId:u.user_id, user:u.name, name:u.name,
           avatar:u.avatar, area:u.area, bio:u.bio||"",
         })));
-       const frozenUsers = usersData.filter(u=>u.is_frozen).map(u=>u.user_id);
+      const frozenUsers = usersData.filter(u=>u.is_frozen).map(u=>u.user_id);
       setFrozenIds(new Set(frozenUsers)); 
       }
       const savedUser = localStorage.getItem("tecco_user");
@@ -578,6 +527,11 @@ function App() {
         const {userId} = JSON.parse(savedUser);
         const {data:followsData} = await supabase.from("follows").select("following_id").eq("follower_id",userId||"");
         if (followsData) setFollowing(followsData.map(f=>f.following_id));
+        const {data:followersData} = await supabase
+           .from("follows")
+           .select("follower_id")
+           .eq("following_id", userId);
+        if (followersData) setFollowerIds(followersData.map(f=>f.follower_id));
       }
       if (savedUser) {
         const {userId} = JSON.parse(savedUser);
@@ -597,6 +551,15 @@ function App() {
             .eq("user_id", userId)
             .order("created_at", {ascending:false});
           if (notifsData) setNotifications(notifsData);
+        }
+      }
+      if (savedUser) {
+        const {userId} = JSON.parse(savedUser);
+        if (userId) {
+          const {data:blocksData} = await supabase.from("blocks")
+            .select("blocked_id")
+            .eq("blocker_id", userId);
+          if (blocksData) setBlockedIds(blocksData.map(b=>b.blocked_id));
         }
       }
     };
@@ -660,7 +623,6 @@ const toggleDislike = async id => {
     }
   };
 
-
   const submitPost = async () => {
     if (!draftText.trim()) return;
     const {data,error} = await supabase.from("posts").insert({
@@ -670,7 +632,7 @@ const toggleDislike = async id => {
       child_ages:JSON.stringify(profile.children.map(c=>c.age)),
       likes:0, dislikes:0,
     }).select().single();
-    if (error){console.log(error);return;}
+    if (error){ return; }
     setPosts(p=>[{
       id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
       childAges:JSON.parse(data.child_ages||"[]"),
@@ -699,11 +661,8 @@ const deleteComment = async (postId,cid) => {
     const {data,error} = await supabase.from("comments").insert({
       post_id:postId, user:profile.name, user_id:profile.userId, avatar:profile.avatar, text:commentText,
     }).select().single();
-    if (error){console.log(error);return;}
+    if (error){ return; }
     const post = posts.find(x=>x.id===postId);
-    console.log("post:", post);
-    console.log("post.userId:", post?.userId);
-    console.log("profile.userId:", profile.userId);
     if (post) {
       await supabase.from("notifications").insert({
         user_id:post.userId, type:"comment", from_user:profile.name,
@@ -727,7 +686,6 @@ const deleteComment = async (postId,cid) => {
     }
   };
 
-
   const submitBoardComment = async boardId => {
     if (!boardCommentText.trim()) return;
     const {data,error} = await supabase.from("board_comments").insert({
@@ -748,7 +706,7 @@ const deleteComment = async (postId,cid) => {
     const {data,error} = await supabase.from("boards").insert({
       category:boardDraftCat, content:boardDraftText,
     }).select().single();
-    if (error){console.log(error);return;}
+    if (error){ return; }
     setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),comments:[]}, ...p]);
     setBoardDraftText("");setBoardComposing(false);
   };
@@ -767,7 +725,7 @@ const freezeUser = async uid => {
     if (!feedbackText.trim()) return;
     const { error } = await supabase.from("feedbacks")
       .insert({ text: feedbackText, user_id: profile.userId });
-    if (error) { console.log(error); return; }
+    if (error) { //console.log(error); return; }
     setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]);
     setFeedbackText(""); setFeedbackSent(true);
     setTimeout(()=>setFeedbackSent(false),3000);
@@ -789,14 +747,14 @@ const freezeUser = async uid => {
         name:spotData.name, area:spotData.area, type:spotData.type,
         address:spotData.address, memo:spotData.memo, map_url:spotData.mapUrl,
       }).select().single();
-      if (error){console.log(error);return;}
+      if (error){ return; }
       setSpots(p=>[...p,{...spotData,id:data.id,reviews:[]}]);
     } else {
       const {error} = await supabase.from("spots").update({
         name:editingSpot.name, area:editingSpot.area, type:editingSpot.type,
         address:editingSpot.address, memo:editingSpot.memo, map_url:editingSpot.mapUrl,
       }).eq("id",editingSpot.id);
-      if (error){console.log(error);return;}
+      if (error){ return; }
       setSpots(p=>p.map(sp=>sp.id===editingSpot.id?editingSpot:sp));
     }
     setEditingSpot(null);
@@ -816,7 +774,7 @@ const saveProf = async () => {
         bio: profDraft.bio,
       })
       .eq("user_id", profDraft.userId);
-    if (error) { console.log(error); return; }
+    if (error) { //console.log(error); return; }
     setProfile(profDraft);
     localStorage.setItem("tecco_user", JSON.stringify(profDraft));
     setEditProf(false);
@@ -831,7 +789,7 @@ const saveProf = async () => {
     const { error } = await supabase.from("users")
       .update({ children: JSON.stringify(newChildren) })
       .eq("user_id", profile.userId);
-    if (error) { console.log(error); return; }
+    if (error) { //console.log(error); return; }
     setProfile(p=>({...p, children:newChildren}));
     localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
     setChildMode(null);
@@ -841,7 +799,7 @@ const deleteChild = async () => {
     const { error } = await supabase.from("users")
       .update({ children: JSON.stringify(newChildren) })
       .eq("user_id", profile.userId);
-    if (error) { console.log(error); return; }
+    if (error) { //console.log(error); return; }
     setProfile(p=>({...p, children:newChildren}));
     localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
     setChildMode(null);
@@ -868,7 +826,20 @@ const toggleFollow = async userId => {
       setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
       setSeenNotif(false);
       setFollowing(p=>[...p,userId]);
+    };
+
+    const toggleBlock = async userId => {
+    if (blockedIds.includes(userId)) {
+      await supabase.from("blocks").delete().eq("blocker_id", profile.userId).eq("blocked_id", userId);
+      setBlockedIds(p=>p.filter(id=>id!==userId));
+    } else {
+      await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
+      setBlockedIds(p=>[...p, userId]);
+      // ブロックしたらフォローも解除
+      if (following.includes(userId)) toggleFollow(userId);
     }
+  };
+
     // 通知をリアルタイムで反映
     const saved = localStorage.getItem("tecco_user");
     if (saved) {
@@ -1120,6 +1091,7 @@ const toggleFollow = async userId => {
   if (viewUser) {
     const isFrozen    = frozenIds.has(viewUser.userId);
     const isFollowing = following.includes(viewUser.userId);
+    const isBlocked   = blockedIds.includes(viewUser.userId);
     const userPosts   = posts.filter(p=>p.userId===viewUser.userId&&p.scope!=="wall");
     return (
       <div style={s.root}>
@@ -1139,9 +1111,15 @@ const toggleFollow = async userId => {
             <div style={s.statItem}><div style={s.statNum}>—</div><div style={s.statLabel}>フォロー中</div></div>
           </div>
           {viewUser.userId!==profile?.userId && (
-            <button style={isFollowing?s.unfollowBtnLg:s.followBtn} onClick={()=>toggleFollow(viewUser.userId)}>
-              {isFollowing?"フォロー中（解除）":"フォローする"}
-            </button>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:12}}>
+              <button style={isFollowing?s.unfollowBtnLg:s.followBtn} onClick={()=>toggleFollow(viewUser.userId)}>
+                {isFollowing?"フォロー中（解除）":"フォローする"}
+              </button>
+              <button style={{background:"none",border:`1.5px solid ${C.red}66`,color:C.red,borderRadius:20,padding:"7px 20px",fontWeight:700,fontSize:13,cursor:"pointer"}}
+                onClick={()=>toggleBlock(viewUser.userId)}>
+                {isBlocked?"ブロック解除":"ブロックする"}
+              </button>
+            </div>
           )}
           {isAdmin && (
             <div style={{marginTop:10}}>
@@ -1158,6 +1136,7 @@ const toggleFollow = async userId => {
       </div>
     );
   }
+  
 
   // ── 遊び場詳細 ──
   if (viewSpot) {
@@ -1491,6 +1470,7 @@ const toggleFollow = async userId => {
 
         {tab==="mypage"&&!tagSearch && (
           <>
+
             <div style={s.myCard}>
               <div style={s.myAvatarBox}>{profile.avatar}</div>
               <div style={{flex:1}}>
@@ -1529,7 +1509,7 @@ const toggleFollow = async userId => {
             <div style={{...s.secTitle,marginTop:8}}>💝 teccoを応援する</div>
             <div style={s.donateSection}>
               <div style={s.donateTitle}>teccoを応援する</div>
-              <div style={s.donateDesc}>teccoは岩手のパパママのために<br/>有志で運営しています。<br/>ご支援いただけると嬉しいです🍀</div>
+              <div style={s.donateDesc}>teccoは岩手のパパママのために<br/>個人で運営しています。<br/>ご支援いただけると嬉しいです🍀</div>
               <button style={s.donateBtn} onClick={()=>alert("準備中です。ありがとうございます！💝")}>💝 寄付する</button>
             </div>
             {isAdmin && (
@@ -1574,6 +1554,21 @@ const toggleFollow = async userId => {
                       </div>
                     );
                   })}
+               </div>
+                <div style={s.adminPanel}>
+                  <div style={s.adminTitle}>フィードバック（{feedbacks.length}件）</div>
+                  {feedbacks.length===0 && <div style={{fontSize:13,color:C.textMuted}}>フィードバックはありません</div>}
+                  {feedbacks.map(f=>(
+                    <div key={f.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",lineHeight:1.5,opacity:f.checked?0.5:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <input type="checkbox" checked={f.checked||false}
+                          onChange={()=>setFeedbacks(p=>p.map(x=>x.id===f.id?{...x,checked:!x.checked}:x))}/>
+                        <span>💌 {f.text}</span>
+                        {f.checked && <span style={{fontSize:11,color:C.green,fontWeight:700}}>確認済み</span>}
+                      </div>
+                      <div style={{fontSize:11,color:C.textMuted,marginTop:2,marginLeft:24}}>{f.time}</div>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
