@@ -292,17 +292,19 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
                 onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
                 {c.avatar}
               </div>
-              <div style={{flex:1}}>
+             <div style={{flex:1}}>
                 <div style={s.commentNameRow}>
                   <span style={{...s.commentUser,cursor:"pointer"}}
                     onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
                     {c.user}
                   </span>
                   <span style={s.commentUserId}>@{c.userId}</span>
+                  {(c.userId===post.userId||c.userId===profileUserId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
                 </div>
-{(c.userId===post.userId||c.userId===profileUserId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
+                <div style={s.commentText}>{c.text}</div>
                 <div style={s.commentTime}>{c.time}</div>
               </div>
+
             </div>
           ))}
           <div style={s.commentInputRow}>
@@ -435,6 +437,7 @@ function App() {
     if (error){setSignupError("登録に失敗しました");　return; }
     setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
     localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
+    await supabase.from("follows").insert({follower_id:signupId, following_id:OFFICIAL_ID});
     setFollowing([OFFICIAL_ID]);
     setTab("timeline");setScreen("main");
   };
@@ -464,10 +467,12 @@ function App() {
           childAges:JSON.parse(p.child_ages||"[]"),
           content:p.content,
           time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+          _ts:new Date(p.created_at).getTime(),
           likes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="like").length : 0,
           dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
           scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
         })));
+
       }
       const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
       if (commentsData) {
@@ -637,9 +642,11 @@ const toggleDislike = async id => {
       id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
       childAges:JSON.parse(data.child_ages||"[]"),
       content:data.content, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
+      _ts:Date.now(),
       likes:0, dislikes:0, scope:data.scope,
       tags:JSON.parse(data.tags||"[]"), comments:[],
     }, ...p]);
+
     setDraftText("");setDraftScope("all");setDraftTags([]);setDraftTag("");setComposing(false);
   };
 
@@ -725,7 +732,7 @@ const freezeUser = async uid => {
     if (!feedbackText.trim()) return;
     const { error } = await supabase.from("feedbacks")
       .insert({ text: feedbackText, user_id: profile.userId });
-    if (error) { //console.log(error); return; }
+    if (error) { return; }
     setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]);
     setFeedbackText(""); setFeedbackSent(true);
     setTimeout(()=>setFeedbackSent(false),3000);
@@ -774,7 +781,7 @@ const saveProf = async () => {
         bio: profDraft.bio,
       })
       .eq("user_id", profDraft.userId);
-    if (error) { //console.log(error); return; }
+    if (error) { return; }
     setProfile(profDraft);
     localStorage.setItem("tecco_user", JSON.stringify(profDraft));
     setEditProf(false);
@@ -789,7 +796,7 @@ const saveProf = async () => {
     const { error } = await supabase.from("users")
       .update({ children: JSON.stringify(newChildren) })
       .eq("user_id", profile.userId);
-    if (error) { //console.log(error); return; }
+    if (error) { return; }
     setProfile(p=>({...p, children:newChildren}));
     localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
     setChildMode(null);
@@ -799,7 +806,7 @@ const deleteChild = async () => {
     const { error } = await supabase.from("users")
       .update({ children: JSON.stringify(newChildren) })
       .eq("user_id", profile.userId);
-    if (error) { //console.log(error); return; }
+    if (error) { return; }
     setProfile(p=>({...p, children:newChildren}));
     localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
     setChildMode(null);
@@ -826,21 +833,8 @@ const toggleFollow = async userId => {
       setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
       setSeenNotif(false);
       setFollowing(p=>[...p,userId]);
-    };
-
-    const toggleBlock = async userId => {
-    if (blockedIds.includes(userId)) {
-      await supabase.from("blocks").delete().eq("blocker_id", profile.userId).eq("blocked_id", userId);
-      setBlockedIds(p=>p.filter(id=>id!==userId));
-    } else {
-      await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
-      setBlockedIds(p=>[...p, userId]);
-      // ブロックしたらフォローも解除
-      if (following.includes(userId)) toggleFollow(userId);
     }
-  };
 
-    // 通知をリアルタイムで反映
     const saved = localStorage.getItem("tecco_user");
     if (saved) {
       const {userId} = JSON.parse(saved);
@@ -852,6 +846,17 @@ const toggleFollow = async userId => {
     }
   };
 
+const toggleBlock = async userId => {
+    if (blockedIds.includes(userId)) {
+      await supabase.from("blocks").delete().eq("blocker_id", profile.userId).eq("blocked_id", userId);
+      setBlockedIds(p=>p.filter(id=>id!==userId));
+    } else {
+      await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
+      setBlockedIds(p=>[...p, userId]);
+      if (following.includes(userId)) toggleFollow(userId);
+    }
+  };
+  
 
  const pcp = post => ({
     post, liked:likedIds.has(post.id), disliked:dislikedIds.has(post.id),
@@ -1436,37 +1441,6 @@ const toggleFollow = async userId => {
           </>
         )}
 
-        {tab==="spots"&&!tagSearch && (
-          <>
-            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-              <select style={{...s.select,flex:1}} value={spotArea} onChange={e=>setSpotArea(e.target.value)}>
-                {FILTER_AREAS.map(a=><option key={a}>{a}</option>)}
-              </select>
-              <select style={{...s.select,flex:1}} value={spotType} onChange={e=>setSpotType(e.target.value)}>
-                {SPOT_TYPES.map(t=><option key={t}>{t}</option>)}
-              </select>
-            </div>
-            {spots
-              .filter(sp=>(spotArea==="全域"||sp.area===spotArea)&&(spotType==="すべて"||sp.type===spotType))
-              .map(sp=>(
-                <div key={sp.id} style={{...s.card,cursor:"pointer"}} onClick={()=>setViewSpot(sp.id)}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                    <span style={{fontSize:12,fontWeight:700,background:C.coralPale,color:C.coral,borderRadius:8,padding:"3px 10px"}}>
-                      {sp.type==="支援センター"?"🏡":sp.type==="室内遊び場"?"🎪":"🌳"} {sp.type}
-                    </span>
-                    <span style={{fontSize:11,color:C.textMuted}}>📍{sp.area}</span>
-                  </div>
-                  <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:4}}>{sp.name}</div>
-                  <div style={{fontSize:12,color:C.textSub,marginBottom:6}}>{sp.address}</div>
-                  <div style={{fontSize:13,color:C.textSub,lineHeight:1.5}}>{sp.memo}</div>
-                  <div style={{fontSize:12,color:C.purple,marginTop:8,fontWeight:600}}>💬 クチコミ {sp.reviews.length}件 →</div>
-                </div>
-              ))}
-            <div style={{...s.boardNotice,marginTop:8}}>
-              📍 掲載してほしい場所はフィードバックから教えてください！
-            </div>
-          </>
-        )}
 
         {tab==="mypage"&&!tagSearch && (
           <>
