@@ -409,32 +409,65 @@ function App() {
   const notifBadge = seenNotif ? 0 : notifications.length;
 
   // ログイン
-  const handleLogin = async () => {
+ const handleLogin = async () => {
     setLoginError("");
     if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
     if (loginId===ADMIN_ID&&loginPw==="admin"){
       setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
       setTab("timeline");setScreen("main");return;
     }
+    // usersテーブルからユーザー情報を取得
     const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
     if (error||!data){setLoginError("このIDは登録されていません");return;}
-    if (data.password!==loginPw){setLoginError("パスワードが違います");return;}
     if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
+
+    // Supabase Authでログイン
+    const fakeEmail = `${loginId}@tecco.app`;
+    const {error:authError} = await supabase.auth.signInWithPassword({
+      email: fakeEmail,
+      password: loginPw,
+    });
+    if (authError) {
+      if (data.password === loginPw) {
+        const {error:signUpError} = await supabase.auth.signUp({
+          email: fakeEmail,
+          password: loginPw,
+        });
+        if (signUpError){setLoginError("ログインに失敗しました");return;}
+      } else {
+        setLoginError("パスワードが違います");return;
+      }
+    }
+
     setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
     localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
     setTab("timeline");setScreen("main");
   };
 
-  //　サインアップ
-  const handleSignup = async () => {
+  //サインアップ
+const handleSignup = async () => {
     setSignupError("");
     if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
     if (signupId===ADMIN_ID){setSignupError("このIDは使用できません");return;}
     if (signupPw.length<6){setSignupError("パスワードは6文字以上にしてください");return;}
     const {data:existing} = await supabase.from("users").select("user_id").eq("user_id",signupId).single();
     if (existing){setSignupError("このIDはすでに使われています");return;}
-    const {error} = await supabase.from("users").insert({user_id:signupId,name:signupName,area:signupArea,avatar:signupAvatar,bio:"",password:signupPw});
-    if (error){setSignupError("登録に失敗しました");　return; }
+
+    // Supabase Authで登録（メールアドレスの代わりにIDをメール形式で使う）
+    const fakeEmail = `${signupId}@tecco.app`;
+    const {data:authData, error:authError} = await supabase.auth.signUp({
+      email: fakeEmail,
+      password: signupPw,
+    });
+    if (authError){setSignupError("登録に失敗しました: " + authError.message);return;}
+
+    // usersテーブルにプロフィール保存
+    const {error} = await supabase.from("users").insert({
+      user_id:signupId, name:signupName, area:signupArea,
+      avatar:signupAvatar, bio:"", auth_id:authData.user.id
+    });
+    if (error){setSignupError("登録に失敗しました");return;}
+
     setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
     localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
     await supabase.from("follows").insert({follower_id:signupId, following_id:OFFICIAL_ID});
@@ -442,6 +475,7 @@ function App() {
     setTab("timeline");setScreen("main");
   };
 
+//ログアウト
  const handleLogout = () => {
     localStorage.removeItem("tecco_user");
     setProfile(null);setFollowing([]);
@@ -450,13 +484,22 @@ function App() {
     setLoginId("");setLoginPw("");setScreen("login");
   };
 
+
+
   // ── Supabaseデータ読み込み ──
-  useEffect(() => {
-    const saved = localStorage.getItem("tecco_user");
-    if (saved) {
-      setProfile(JSON.parse(saved));
-      setScreen("main");
-    }
+ useEffect(() => {
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const saved = localStorage.getItem("tecco_user");
+      if (session && saved) {
+        setProfile(JSON.parse(saved));
+        setScreen("main");
+      } else {
+        localStorage.removeItem("tecco_user");
+      }
+    };
+    initSession();
+
 
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
