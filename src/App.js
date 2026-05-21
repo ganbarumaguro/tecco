@@ -389,6 +389,7 @@ function App() {
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
   const followerList = allKnownUsers.filter(u => followerIds.includes(u.userId));
+  const [timelineFilter, setTimelineFilter] = useState("all");
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -914,11 +915,12 @@ const toggleBlock = async userId => {
     profileUserId:profile?.userId,
   });
 
-  const visiblePosts = posts.filter(p=>{
+   const visiblePosts = posts.filter(p=>{
     if (frozenIds.has(p.userId)&&!isAdmin) return false;
     if (p.scope==="wall"&&p.userId!==profile?.userId) return false;
     if (p.scope==="followers"&&p.userId!==profile?.userId&&!following.includes(p.userId)) return false;
     if (tagSearch) return p.tags.includes(tagSearch);
+    if (tab==="timeline"&&timelineFilter==="following"&&p.userId!==profile?.userId&&!following.includes(p.userId)) return false;
     if (tab==="area"&&filterArea!=="全域"&&p.area!==filterArea) return false;
     if (tab==="age"&&filterAge!=="全員"){
       const allowed=AGE_MAP[filterAge]||[];
@@ -1294,6 +1296,16 @@ const toggleBlock = async userId => {
           </button>
         ))}
       </nav>
+     {tab==="timeline"&&!tagSearch&&(
+        <div style={s.filterBar}>
+          <div style={{display:"flex",gap:8}}>
+            <button style={{...s.boardCatBtn, background:timelineFilter==="all"?C.coralPale:C.white, borderColor:timelineFilter==="all"?C.coral:C.border, color:timelineFilter==="all"?C.coral:C.textSub}}
+              onClick={()=>setTimelineFilter("all")}>🌍 全員</button>
+            <button style={{...s.boardCatBtn, background:timelineFilter==="following"?C.coralPale:C.white, borderColor:timelineFilter==="following"?C.coral:C.border, color:timelineFilter==="following"?C.coral:C.textSub}}
+              onClick={()=>setTimelineFilter("following")}>👥 フォロー中</button>
+          </div>
+        </div>
+      )}
 
       {tab==="area"&&!tagSearch&&(
         <div style={s.filterBar}>
