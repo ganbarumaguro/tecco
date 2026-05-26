@@ -23,7 +23,6 @@ const BOARD_CATS   = ["すべて","育児相談","発達・先天障害","妊活
 const BOARD_ICONS  = {"育児相談":"💬","発達・先天障害":"🌈","妊活・産院":"🌷","仕事と育児":"💼","習い事・受験":"✏️","マイホーム":"🏠","家族問題":"👨‍👩‍👧","その他":"📝"};
 const ADMIN_ID    = "admin";
 const OFFICIAL_ID = "tecco_official";
-
 const SPOT_TYPES   = ["すべて","支援センター","室内遊び場","公園","勉強スペース","その他"];
 const AGE_MAP = {
   "妊婦":["妊娠中","妊娠"],
@@ -223,7 +222,7 @@ const s = {
   spotReviewTime:{fontSize:11,color:C.textMuted,marginTop:2},
 };
 
-// ── Overlay ──
+// ── オーバーレイ ──
 function Overlay({children, onClose, scrollable}) {
   return (
     <div style={s.overlayBg} onClick={onClose}>
@@ -235,7 +234,7 @@ function Overlay({children, onClose, scrollable}) {
   );
 }
 
-// ── PostCard ──
+// ── ポストカード ──
 function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine,profileUserId}) {
   const [menuOpen,setMenuOpen] = useState(false);
   const uInfo = {user:post.user,userId:post.userId,avatar:post.avatar,area:post.area};
@@ -319,7 +318,8 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
   );
 }
 
-// ── App ──
+
+// ── 宣言 ──
 function App() {
   const [screen,setScreen]           = useState("login");
   const [tab,setTab]                 = useState("timeline");
@@ -362,8 +362,8 @@ function App() {
   const [spotArea,setSpotArea]       = useState("すべて");
   const [spotType,setSpotType]       = useState("すべて");
   const [openSpotId,setOpenSpotId]   = useState(null);
-  const [spotReviewText,setSpotReviewText] = useState("");
   const [spotReview,setSpotReview]   = useState("");
+  const [spotReviewText, setSpotReviewText] = useState("");
   const [viewSpot,setViewSpot]       = useState(null);
   const [profDraft,setProfDraft]     = useState(null);
   const [childMode,setChildMode]     = useState(null);
@@ -390,7 +390,12 @@ function App() {
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
   const followerList = allKnownUsers.filter(u => followerIds.includes(u.userId));
   const [timelineFilter, setTimelineFilter] = useState("all");
-　const [loginAttempts, setLoginAttempts] = useState(0);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [newPwConfirm, setNewPwConfirm] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -409,6 +414,7 @@ function App() {
 
   // 通知バッジ：未確認の新しいフォロワー数
   const notifBadge = seenNotif ? 0 : notifications.length;
+
 
 //ログイン
 const handleLogin = async () => {
@@ -443,7 +449,7 @@ const handleLogin = async () => {
        return;
       }
     }
-
+    setLoginAttempts(0);
     setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
     localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
     setTab("timeline");setScreen("main");
@@ -479,14 +485,14 @@ const handleLogin = async () => {
   };
 
 //ログアウト
- const handleLogout = () => {
+const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem("tecco_user");
     setProfile(null);setFollowing([]);
     setLikedIds(new Set());setDislikedIds(new Set());
     setTagSearch(null);setViewUser(null);setTab("timeline");
     setLoginId("");setLoginPw("");setScreen("login");
   };
-
 
 
   // ── Supabaseデータ読み込み ──
@@ -503,7 +509,6 @@ const handleLogin = async () => {
     };
     initSession();
 
-
     const fetchAll = async () => {
       const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
       const {data:likesCount} = await supabase.from("likes").select("post_id, type");
@@ -518,7 +523,6 @@ const handleLogin = async () => {
           dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
           scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
         })));
-
       }
       const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
       if (commentsData) {
@@ -557,7 +561,6 @@ const handleLogin = async () => {
         })));
       }
       const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
-      //console.log("feedbacksData:", feedbacksData);
       if (feedbacksData) {
         setFeedbacks(feedbacksData.map(f=>({
           id:f.id, text:f.text,
@@ -617,6 +620,7 @@ const handleLogin = async () => {
     fetchAll();
   }, []);
 
+  //いいね
  const toggleLike = async id => {
     const isLiked = likedIds.has(id);
     const post = posts.find(x=>x.id===id);
@@ -654,6 +658,7 @@ const handleLogin = async () => {
     }
   };
 
+  //よくないね
 const toggleDislike = async id => {
     const isDisliked = dislikedIds.has(id);
     const post = posts.find(x=>x.id===id);
@@ -716,7 +721,7 @@ const deleteComment = async (postId,cid) => {
     }).select().single();
     if (error){ return; }
     const post = posts.find(x=>x.id===postId);
-    if (post) {
+    if (post && post.userId !== profile.userId) {
       await supabase.from("notifications").insert({
         user_id:post.userId, type:"comment", from_user:profile.name,
         from_avatar:profile.avatar, post_id:postId,
@@ -739,6 +744,7 @@ const deleteComment = async (postId,cid) => {
     }
   };
 
+  //掲示板
   const submitBoardComment = async boardId => {
     if (!boardCommentText.trim()) return;
     const {data,error} = await supabase.from("board_comments").insert({
@@ -763,6 +769,7 @@ const deleteComment = async (postId,cid) => {
     setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),comments:[]}, ...p]);
     setBoardDraftText("");setBoardComposing(false);
   };
+  //通報・凍結
   const handleReport = (postId,userName) => {
     setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),checked:false}]);
     alert("通報しました。運営が確認します。");
@@ -784,6 +791,7 @@ const freezeUser = async uid => {
     setTimeout(()=>setFeedbackSent(false),3000);
   };
 
+  //スポット
   const submitSpotReview = spotId => {
     if (!spotReviewText.trim()) return;
     setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
@@ -817,6 +825,7 @@ const freezeUser = async uid => {
     setSpots(p=>p.filter(sp=>sp.id!==id));
   };
 
+  //プロフィールを編集
   const openEditProf = () => {setProfDraft({...profile,children:profile.children.map(c=>({...c}))});setEditProf(true);};
 const saveProf = async () => {
     const { error } = await supabase.from("users")
@@ -858,35 +867,35 @@ const deleteChild = async () => {
     setChildMode(null);
   };
   
-const toggleFollow = async userId => {
-    if (following.includes(userId)) {
+const toggleFollow = async targetUserId => {          
+    if (following.includes(targetUserId)) {
       await supabase.from("follows")
         .delete()
         .eq("follower_id", profile.userId)
-        .eq("following_id", userId);
-      setFollowing(p=>p.filter(id=>id!==userId));
+        .eq("following_id", targetUserId);            
+      setFollowing(p=>p.filter(id=>id!==targetUserId)); 
     } else {
       await supabase.from("follows")
-        .insert({follower_id:profile.userId, following_id:userId});
+        .insert({follower_id:profile.userId, following_id:targetUserId}); 
       await supabase.from("notifications").insert({
-        user_id: userId,
+        user_id: targetUserId,                        
         type: "follow",
         from_user: profile.name,
         from_avatar: profile.avatar,
         post_id: null,
         message: `${profile.name}さんがあなたをフォローしました`,
       });
-      setNewFollowers(prev=>prev.includes(userId)?prev:[...prev,userId]);
+      setNewFollowers(prev=>prev.includes(targetUserId)?prev:[...prev,targetUserId]); 
       setSeenNotif(false);
-      setFollowing(p=>[...p,userId]);
+      setFollowing(p=>[...p,targetUserId]);           
     }
 
     const saved = localStorage.getItem("tecco_user");
     if (saved) {
-      const {userId} = JSON.parse(saved);
+      const {userId: myUserId} = JSON.parse(saved);  
       const {data:notifsData} = await supabase.from("notifications")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", myUserId)                     
         .order("created_at", {ascending:false});
       if (notifsData) setNotifications(notifsData);
     }
@@ -899,7 +908,7 @@ const toggleBlock = async userId => {
     } else {
       await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
       setBlockedIds(p=>[...p, userId]);
-      if (following.includes(userId)) toggleFollow(userId);
+      if (following.includes(userId)) await toggleFollow(userId);
     }
   };
   
@@ -919,6 +928,7 @@ const toggleBlock = async userId => {
 
    const visiblePosts = posts.filter(p=>{
     if (frozenIds.has(p.userId)&&!isAdmin) return false;
+    if (blockedIds.includes(p.userId)) return false;
     if (p.scope==="wall"&&p.userId!==profile?.userId) return false;
     if (p.scope==="followers"&&p.userId!==profile?.userId&&!following.includes(p.userId)) return false;
     if (tagSearch) return p.tags.includes(tagSearch);
@@ -969,6 +979,7 @@ const toggleBlock = async userId => {
     </div>
   );
 
+  //画面デザイン
   // ── 新規登録画面 ──
   if (screen==="signup") return (
     <div style={s.authRoot}>
@@ -1201,9 +1212,9 @@ const toggleBlock = async userId => {
   if (viewSpot) {
     const spot = spots.find(s=>s.id===viewSpot);
     const submitReview = () => {
-      if (!spotReview.trim()) return;
-      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReview,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}:s));
-      setSpotReview("");
+      if (!spotReviewText.trim()) return;
+      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}:s));
+      setSpotReviewText("");
     };
     return (
       <div style={s.root}>
@@ -1242,8 +1253,8 @@ const toggleBlock = async userId => {
             </div>
           ))}
           <div style={{...s.commentInputRow,marginTop:12}}>
-            <input style={s.commentInput} placeholder="クチコミを書く…" value={spotReview}
-              onChange={e=>setSpotReview(e.target.value)}
+            <input style={s.commentInput} placeholder="クチコミを書く…" value={spotReviewText}
+              onChange={e=>setSpotReviewText(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&submitReview()}/>
             <button style={s.commentSendBtn} onClick={submitReview}>投稿</button>
           </div>
@@ -1430,7 +1441,6 @@ const toggleBlock = async userId => {
               <div style={s.emptyMsg}>この条件のスポットはまだありません</div>}
           </>
         )}
-
      {tab==="notif" && (
           <>
             <div style={s.secTitle}>🔔 通知</div>
@@ -1453,8 +1463,6 @@ const toggleBlock = async userId => {
             ))}
             </>
         )}
-
-
         {tab==="board"&&!tagSearch && (
           <>
             <div style={s.boardNotice}>🔒 掲示板はアカウントと紐付かない匿名投稿です。</div>
@@ -1505,10 +1513,8 @@ const toggleBlock = async userId => {
           </>
         )}
 
-
         {tab==="mypage"&&!tagSearch && (
           <>
-
             <div style={s.myCard}>
               <div style={s.myAvatarBox}>{profile.avatar}</div>
               <div style={{flex:1}}>
@@ -1610,6 +1616,40 @@ const toggleBlock = async userId => {
                 </div>
               </>
             )}
+            {/* パスワード変更 */}
+<div style={{...s.reportSection, marginTop:8}}>
+  <div style={{...s.reportTitle, marginBottom:0, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+    🔑 パスワードを変更する
+    <button style={{background:"none", border:"none", fontSize:13, color:C.coral, fontWeight:700, cursor:"pointer"}}
+      onClick={()=>{setShowChangePw(v=>!v); setPwError(""); setPwSuccess(false);}}>
+      {showChangePw ? "閉じる" : "変更する"}
+    </button>
+  </div>
+  {showChangePw && (
+    <div style={{marginTop:14}}>
+      <div style={s.formLabel}>新しいパスワード（6文字以上）</div>
+      <input style={{...s.formInput, marginBottom:10}} type="password"
+        placeholder="新しいパスワード"
+        value={newPw} onChange={e=>{setNewPw(e.target.value); setPwError("");}}/>
+      <div style={s.formLabel}>確認用（もう一度）</div>
+      <input style={{...s.formInput, marginBottom:10}} type="password"
+        placeholder="もう一度入力"
+        value={newPwConfirm} onChange={e=>{setNewPwConfirm(e.target.value); setPwError("");}}/>
+      {pwError && <div style={s.authError}>{pwError}</div>}
+      {pwSuccess && <div style={s.successMsg}>✅ パスワードを変更しました！</div>}
+      <button style={{...s.feedbackBtn, marginTop:4}} onClick={async () => {
+        setPwError(""); setPwSuccess(false);
+        if (newPw.length < 6) { setPwError("6文字以上で入力してください"); return; }
+        if (newPw !== newPwConfirm) { setPwError("パスワードが一致しません"); return; }
+        const { error } = await supabase.auth.updateUser({ password: newPw });
+        if (error) { setPwError("変更に失敗しました。再ログインして試してください"); return; }
+        setPwSuccess(true);
+        setNewPw(""); setNewPwConfirm("");
+        setTimeout(() => { setPwSuccess(false); setShowChangePw(false); }, 2000);
+      }}>変更する</button>
+    </div>
+  )}
+</div>
             <button style={s.logoutBtn} onClick={handleLogout}>ログアウト</button>
             <div style={{height:8}}/>
           </>
@@ -1630,7 +1670,7 @@ const toggleBlock = async userId => {
             <div><div style={s.composeUserName}>{profile.name}</div><div style={s.composeUserSub}>@{profile.userId} · 📍{profile.area}</div></div>
           </div>
           <textarea style={s.textarea} autoFocus rows={5} maxLength={280}
-            placeholder="今どんな気持ち？岩手のみんなに話してみよう☁️"
+            placeholder="いまどんな気持ち？☁️"
             value={draftText} onChange={e=>setDraftText(e.target.value)}/>
           <div style={s.divider}/>
           <div style={s.sectionPad}>
@@ -1719,7 +1759,7 @@ const toggleBlock = async userId => {
           <div style={s.sectionPad}>
             <div style={s.formLabel}>自己紹介</div>
             <textarea rows={3} style={{...s.textarea,border:`1.5px solid ${C.border}`,borderRadius:10,background:C.coralPale}}
-              value={profDraft.bio} onChange={e=>setProfDraft(p=>({...p,bio:e.target.value}))} placeholder="育児のこと、趣味、なんでも"/>
+              value={profDraft.bio} onChange={e=>setProfDraft(p=>({...p,bio:e.target.value}))} placeholder="育児のこと、趣味、なんでもどうぞ"/>
           </div>
           <div style={{height:20}}/>
         </Overlay>
@@ -1733,8 +1773,8 @@ const toggleBlock = async userId => {
             <button style={s.postBtn} onClick={saveChild}>保存</button>
           </div>
           <div style={s.sectionPad}>
-            <div style={s.formLabel}>名前（ニックネームでOK）</div>
-            <input style={s.formInput} value={childDraft.name} onChange={e=>setChildDraft(c=>({...c,name:e.target.value}))} placeholder="例：はると"/>
+            <div style={s.formLabel}>名前（ニックネームで）</div>
+            <input style={s.formInput} value={childDraft.name} onChange={e=>setChildDraft(c=>({...c,name:e.target.value}))} placeholder="例：べびちゃん"/>
           </div>
           <div style={s.sectionPad}>
             <div style={s.formLabel}>月齢・年齢</div>
