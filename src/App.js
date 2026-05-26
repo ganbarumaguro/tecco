@@ -390,6 +390,7 @@ function App() {
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
   const followerList = allKnownUsers.filter(u => followerIds.includes(u.userId));
   const [timelineFilter, setTimelineFilter] = useState("all");
+　const [loginAttempts, setLoginAttempts] = useState(0);
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -409,20 +410,18 @@ function App() {
   // 通知バッジ：未確認の新しいフォロワー数
   const notifBadge = seenNotif ? 0 : notifications.length;
 
-  // ログイン
- const handleLogin = async () => {
+//ログイン
+const handleLogin = async () => {
     setLoginError("");
     if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
     if (loginId===ADMIN_ID&&loginPw==="admin"){
       setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
       setTab("timeline");setScreen("main");return;
     }
-    // usersテーブルからユーザー情報を取得
     const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
     if (error||!data){setLoginError("このIDは登録されていません");return;}
     if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
 
-    // Supabase Authでログイン
     const fakeEmail = `${loginId}@tecco.app`;
     const {error:authError} = await supabase.auth.signInWithPassword({
       email: fakeEmail,
@@ -430,13 +429,18 @@ function App() {
     });
     if (authError) {
       if (data.password === loginPw) {
-        const {error:signUpError} = await supabase.auth.signUp({
+        const {data:signUpData, error:signUpError} = await supabase.auth.signUp({
           email: fakeEmail,
           password: loginPw,
         });
         if (signUpError){setLoginError("ログインに失敗しました");return;}
+        await supabase.from("users")
+          .update({auth_id: signUpData.user.id})
+          .eq("user_id", loginId);
       } else {
-        setLoginError("パスワードが違います");return;
+        setLoginError("パスワードが違います");
+       setLoginAttempts(p=>p+1);
+       return;
       }
     }
 
@@ -445,8 +449,8 @@ function App() {
     setTab("timeline");setScreen("main");
   };
 
-  //サインアップ
-const handleSignup = async () => {
+ //サインアップ
+  const handleSignup = async () => {
     setSignupError("");
     if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
     if (signupId===ADMIN_ID){setSignupError("このIDは使用できません");return;}
@@ -454,7 +458,6 @@ const handleSignup = async () => {
     const {data:existing} = await supabase.from("users").select("user_id").eq("user_id",signupId).single();
     if (existing){setSignupError("このIDはすでに使われています");return;}
 
-    // Supabase Authで登録（メールアドレスの代わりにIDをメール形式で使う）
     const fakeEmail = `${signupId}@tecco.app`;
     const {data:authData, error:authError} = await supabase.auth.signUp({
       email: fakeEmail,
@@ -462,7 +465,6 @@ const handleSignup = async () => {
     });
     if (authError){setSignupError("登録に失敗しました: " + authError.message);return;}
 
-    // usersテーブルにプロフィール保存
     const {error} = await supabase.from("users").insert({
       user_id:signupId, name:signupName, area:signupArea,
       avatar:signupAvatar, bio:"", auth_id:authData.user.id
@@ -951,6 +953,13 @@ const toggleBlock = async userId => {
             onChange={e=>{setLoginPw(e.target.value);setLoginError("");}}
             onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
           {loginError && <div style={s.authError}>{loginError}</div>}
+          {loginAttempts>=3 && (
+  <div style={{background:"#FFF8E6",border:"1px solid #FFE49A",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#7A5C00",marginBottom:10,lineHeight:1.6}}>
+    パスワードをお忘れですか？<br/>
+    以下のメールアドレスまでご連絡ください🍀<br/>
+    <strong>@gmail.com</strong>
+  </div>
+)}
           <div style={{height:8}}/>
           <button style={s.authBtn} onClick={handleLogin}>ログインする</button>
           <button style={s.authBtnSub} onClick={()=>{setScreen("signup");setLoginError("");}}>新規登録</button>
@@ -1035,7 +1044,7 @@ const toggleBlock = async userId => {
                 ["第3条　禁止事項","以下の行為を禁止します。①他のユーザーへの誹謗中傷・ハラスメント行為　②個人情報（住所・電話番号・氏名等）の掲載　③商業目的の宣伝・勧誘（運営が許可した場合を除く）　④虚偽情報・デマの流布　⑤政治・宗教活動を目的とした投稿　⑥著作権・肖像権等の侵害　⑦なりすまし行為　⑧その他運営が不適切と判断した行為"],
                 ["第4条　投稿コンテンツ","投稿の著作権は投稿者本人に帰属します。投稿することで、本サービス内での表示・共有に必要な範囲での利用を許諾したものとみなします。運営は、禁止事項に違反する投稿を予告なく削除できるものとします。"],
                 ["第5条　免責事項","本サービスはユーザー間のコミュニケーションを媒介するものであり、ユーザー間のトラブルに対して運営は責任を負いません。システム障害・メンテナンス等によるサービス停止について、運営は責任を負いません。投稿内容の正確性・信頼性について、運営は保証しません。"],
-                ["第6条　アカウントの停止","本規約に違反した場合、予告なくアカウントを停止・削除することがあります。アカウントの削除を希望する場合は、お問い合わせ窓口よりご連絡ください。"],
+                ["第6条　アカウントの停止・パスワードリセット","本規約に違反した場合、予告なくアカウントを停止・削除することがあります。アカウントの削除を希望する場合は、お問い合わせ窓口よりご連絡ください。パスワードを忘れた場合は、tecco運営アカウント（@admin）へのコメントまたはフィードバック欄よりご連絡ください。本人確認の上、パスワードのリセット対応をいたします。"],
                 ["第7条　規約の変更","運営は、必要に応じて本規約を変更できるものとします。変更後の規約は、本サービス上での告知をもって効力を生じます。"],
                 ["第8条　準拠法・管轄","本規約は日本法に準拠します。本サービスに関する紛争は、岩手地方裁判所を第一審の専属的合意管轄裁判所とします。"],
               ].map(([title,body])=>(
@@ -1068,7 +1077,7 @@ const toggleBlock = async userId => {
                 ["第2条　利用目的","取得した情報は、①本サービスの提供・運営・改善　②ユーザー認証・不正アクセス防止　③禁止事項への対応・アカウント管理　④利用状況の統計的分析（個人を特定しない形式）にのみ使用します。"],
                 ["第3条　第三者への提供","ユーザーの同意がある場合、法令に基づく開示請求がある場合、人の生命・身体・財産の保護のために必要な場合を除き、個人情報を第三者に提供しません。"],
                 ["第4条　Cookieの使用","本サービスは、ログイン状態の維持のためにCookieを使用します。Cookieにより個人を特定することはありません。"],
-                ["第5条　情報の管理","パスワードは暗号化（ハッシュ化）して保存します。通信はSSL/TLSにより暗号化します。不正アクセス・漏洩防止のための適切な措置を講じます。"],
+                ["第5条　情報の管理","パスワードはSupabase Authにより暗号化（ハッシュ化）して保存します。運営スタッフであってもパスワードを閲覧することはできません。パスワードを忘れた場合は、tecco運営アカウント（@admin）へのコメントまたはフィードバック欄よりご連絡ください。本人確認の上、パスワードのリセット対応をいたします。通信はSSL/TLSにより暗号化します。不正アクセス・漏洩防止のための適切な措置を講じます。"],
                 ["第6条　ユーザーの権利","ユーザーは個人情報の開示請求・訂正・削除を求めることができます。アカウントの削除を希望する場合は、お問い合わせ窓口よりご連絡ください。"],
                 ["第7条　子どもの個人情報","本サービスは保護者向けのサービスです。子ども自身の個人情報（氏名・顔写真等）の投稿、および子ども個人の特定につながる投稿は行わないようお願いします。"],
                 ["第8条　ポリシーの変更","本ポリシーは、法令の改正やサービスの変更に伴い更新することがあります。重要な変更がある場合は、本サービス上でお知らせします。"],
