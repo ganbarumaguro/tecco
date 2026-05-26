@@ -339,7 +339,7 @@ function App() {
   const [followerIds, setFollowerIds] = useState([]);
   const [lastSeenTimeline,setLastSeenTimeline] = useState(Date.now()); // タイムライン最終閲覧時刻
   const [lastSeenBoard,setLastSeenBoard]       = useState(Date.now()); // 掲示板最終閲覧時刻
-  const [newFollowers,setNewFollowers]         = useState([]); // 新しいフォロワーのuserId一覧
+  const [,setNewFollowers]         = useState([]); // 新しいフォロワーのuserId一覧
   const [seenNotif,setSeenNotif]               = useState(false); // 通知タブを見たか
   const [tagSearch,setTagSearch]     = useState(null);
   const [viewUser,setViewUser]       = useState(null);
@@ -362,7 +362,6 @@ function App() {
   const [spotArea,setSpotArea]       = useState("すべて");
   const [spotType,setSpotType]       = useState("すべて");
   const [openSpotId,setOpenSpotId]   = useState(null);
-  const [spotReview,setSpotReview]   = useState("");
   const [spotReviewText, setSpotReviewText] = useState("");
   const [viewSpot,setViewSpot]       = useState(null);
   const [profDraft,setProfDraft]     = useState(null);
