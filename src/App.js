@@ -122,7 +122,7 @@ const s = {
   commentInputRow:{display:"flex",gap:8,marginTop:8},
   commentInput:{flex:1,padding:"8px 13px",borderRadius:20,border:`1.5px solid ${C.border}`,fontSize:13,outline:"none",background:C.beigeLight},
   commentSendBtn:{padding:"8px 16px",borderRadius:20,background:C.coral,border:"none",fontSize:12,fontWeight:700,color:C.white,cursor:"pointer"},
-  fab:{position:"fixed",bottom:24,right:20,height:52,borderRadius:26,background:C.coral,border:"none",fontSize:14,fontWeight:800,boxShadow:`0 4px 16px ${C.coral}66`,cursor:"pointer",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",color:C.white,gap:8,padding:"0 22px"},
+  fab:{position:"fixed",bottom:"42%",right:20,height:56,borderRadius:28,background:C.coral,border:"none",fontSize:15,fontWeight:800,boxShadow:`0 4px 16px ${C.coral}66`,cursor:"pointer",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",color:C.white,gap:8,padding:"0 26px"},
   overlayBg:{position:"fixed",inset:0,background:"rgba(50,30,20,0.40)",zIndex:300,display:"flex",alignItems:"flex-end"},
   modalSheet:{width:"100%",maxWidth:480,margin:"0 auto",background:C.white,borderRadius:"20px 20px 0 0",paddingBottom:8},
   modalHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 16px 12px",borderBottom:`1px solid ${C.border}`},
@@ -235,7 +235,7 @@ function Overlay({children, onClose, scrollable}) {
 }
 
 // ── ポストカード ──
-function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine,profileUserId}) {
+function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine,profileUserId,onPin,isPinned}) {
   const [menuOpen,setMenuOpen] = useState(false);
   const uInfo = {user:post.user,userId:post.userId,avatar:post.avatar,area:post.area};
   return (
@@ -244,6 +244,9 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         <div style={s.inlineMenu}>
           {(isMine||isAdmin) && <button style={s.menuItemDanger} onClick={()=>{onDelete(post.id);setMenuOpen(false);}}>🗑️ 削除する</button>}
           {!isMine && <button style={s.menuItem} onClick={()=>{onReport(post.id,post.user);setMenuOpen(false);}}>🚩 通報する</button>}
+          {isMine && <button style={s.menuItem} onClick={()=>{onPin(post.id);setMenuOpen(false);}}>
+  {isPinned?"📌 固定を解除":"📌 マイページに固定"}
+</button>}
           <button style={{...s.menuItem,color:C.textMuted}} onClick={()=>setMenuOpen(false)}>閉じる</button>
         </div>
       )}
@@ -278,8 +281,8 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         </div>
       )}
       <div style={s.actions}>
-        <button style={{...s.actionBtn,color:liked?C.red:C.textSub}} onClick={()=>onLike(post.id)}>{liked?"❤️":"🤍"} {post.likes}</button>
-        <button style={{...s.actionBtn,color:disliked?C.purple:C.textSub}} onClick={()=>onDislike(post.id)}>{disliked?"💔":"🖤"} {post.dislikes}</button>
+        <button style={{...s.actionBtn,color:liked?C.red:C.textSub}} onClick={()=>onLike(post.id)}>{liked?"️💓":"💕"} {post.likes}</button>
+        <button style={{...s.actionBtn,color:disliked?C.purple:C.textSub}} onClick={()=>onDislike(post.id)}>{disliked?"😭":"😢"} {post.dislikes}</button>
         <button style={s.actionBtn} onClick={onToggleComments}>💬 {post.comments.length}</button>
         <button style={s.menuBtn} onClick={()=>setMenuOpen(v=>!v)}>▾ メニュー</button>
       </div>
@@ -395,6 +398,9 @@ function App() {
   const [newPwConfirm, setNewPwConfirm] = useState("");
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [pinnedIds, setPinnedIds] = useState([]);
 
   // バッジ計算
   // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
@@ -450,6 +456,8 @@ const handleLogin = async () => {
     }
     setLoginAttempts(0);
     setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
+    const savedPins = data.pinned_ids ? JSON.parse(data.pinned_ids) : [];
+setPinnedIds(savedPins);
     localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
     setTab("timeline");setScreen("main");
   };
@@ -492,6 +500,20 @@ const handleLogout = async () => {
     setTagSearch(null);setViewUser(null);setTab("timeline");
     setLoginId("");setLoginPw("");setScreen("login");
   };
+  const handleDeleteAccount = async () => {
+  if (!window.confirm("本当に退会しますか？\nこの操作は取り消せません。")) return;
+  await supabase.from("posts").delete().eq("user_id", profile.userId);
+  await supabase.from("comments").delete().eq("user_id", profile.userId);
+  await supabase.from("follows").delete().eq("follower_id", profile.userId);
+  await supabase.from("follows").delete().eq("following_id", profile.userId);
+  await supabase.from("likes").delete().eq("user_id", profile.userId);
+  await supabase.from("users").delete().eq("user_id", profile.userId);
+  await supabase.auth.signOut();
+  localStorage.removeItem("tecco_user");
+  setProfile(null);setFollowing([]);
+  setLikedIds(new Set());setDislikedIds(new Set());
+  setTab("timeline");setScreen("login");
+};
 
 
   // ── Supabaseデータ読み込み ──
@@ -500,9 +522,13 @@ const handleLogout = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const saved = localStorage.getItem("tecco_user");
       if (session && saved) {
-        setProfile(JSON.parse(saved));
-        setScreen("main");
-      } else {
+  const savedProfile = JSON.parse(saved);
+  setProfile(savedProfile);
+  const {data:userData} = await supabase.from("users").select("pinned_ids").eq("user_id", savedProfile.userId).single();
+  if (userData?.pinned_ids) setPinnedIds(JSON.parse(userData.pinned_ids));
+  setScreen("main");
+}
+      else {
         localStorage.removeItem("tecco_user");
       }
     };
@@ -562,9 +588,10 @@ const handleLogout = async () => {
       const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
       if (feedbacksData) {
         setFeedbacks(feedbacksData.map(f=>({
-          id:f.id, text:f.text,
-          time:new Date(f.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-        })));
+  id:f.id, text:f.text,
+  time:new Date(f.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+  checked:f.is_checked||false,
+})));
       }
       const {data:usersData} = await supabase.from("users").select("*");
       if (usersData) {
@@ -708,6 +735,20 @@ const toggleDislike = async id => {
     await supabase.from("posts").delete().eq("id", id);
     setPosts(p=>p.filter(x=>x.id!==id));
   };
+
+  const togglePin = async (postId) => {
+  let newPins;
+  if (pinnedIds.includes(postId)) {
+    newPins = pinnedIds.filter(id=>id!==postId);
+  } else {
+    if (pinnedIds.length>=3) { alert("固定できるのは3つまでです"); return; }
+    newPins = [...pinnedIds, postId];
+  }
+  const {error} = await supabase.from("users").update({pinned_ids: JSON.stringify(newPins)}).eq("user_id", profile.userId);
+  if (error) { alert("エラー: " + error.message); return; }
+  setPinnedIds(newPins);
+};
+
 const deleteComment = async (postId,cid) => {
     await supabase.from("comments").delete().eq("id", cid);
     setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
@@ -922,7 +963,8 @@ const toggleBlock = async userId => {
     commentText, onCommentChange:setCommentText, onCommentSubmit:submitComment,
     onDelete:deletePost, onDeleteComment:deleteComment, onReport:handleReport,
     isAdmin, isMine:post.userId===profile?.userId,
-    profileUserId:profile?.userId,
+    profileUserId:profile?.userId,onPin:togglePin,
+isPinned:pinnedIds.includes(post.id),
   });
 
    const visiblePosts = posts.filter(p=>{
@@ -1054,7 +1096,7 @@ const toggleBlock = async userId => {
                 ["第3条　禁止事項","以下の行為を禁止します。①他のユーザーへの誹謗中傷・ハラスメント行為　②個人情報（住所・電話番号・氏名等）の掲載　③商業目的の宣伝・勧誘（運営が許可した場合を除く）　④虚偽情報・デマの流布　⑤政治・宗教活動を目的とした投稿　⑥著作権・肖像権等の侵害　⑦なりすまし行為　⑧その他運営が不適切と判断した行為"],
                 ["第4条　投稿コンテンツ","投稿の著作権は投稿者本人に帰属します。投稿することで、本サービス内での表示・共有に必要な範囲での利用を許諾したものとみなします。運営は、禁止事項に違反する投稿を予告なく削除できるものとします。"],
                 ["第5条　免責事項","本サービスはユーザー間のコミュニケーションを媒介するものであり、ユーザー間のトラブルに対して運営は責任を負いません。システム障害・メンテナンス等によるサービス停止について、運営は責任を負いません。投稿内容の正確性・信頼性について、運営は保証しません。"],
-                ["第6条　アカウントの停止・パスワードリセット","本規約に違反した場合、予告なくアカウントを停止・削除することがあります。アカウントの削除を希望する場合は、お問い合わせ窓口よりご連絡ください。パスワードを忘れた場合は、tecco運営アカウント（@admin）へのコメントまたはフィードバック欄よりご連絡ください。本人確認の上、パスワードのリセット対応をいたします。"],
+                ["第6条　アカウントの停止・パスワードリセット","本規約に違反した場合、予告なくアカウントを停止・削除することがあります。アカウントの削除はマイページ下部の「退会する」ボタンから行えます。退会すると投稿・コメント・フォロー情報などすべてのデータが削除され、復元できません。パスワードを忘れた場合は、tecco運営アカウント（@admin）へのコメントまたはフィードバック欄よりご連絡ください。本人確認の上、パスワードのリセット対応をいたします。"],
                 ["第7条　規約の変更","運営は、必要に応じて本規約を変更できるものとします。変更後の規約は、本サービス上での告知をもって効力を生じます。"],
                 ["第8条　準拠法・管轄","本規約は日本法に準拠します。本サービスに関する紛争は、岩手地方裁判所を第一審の専属的合意管轄裁判所とします。"],
               ].map(([title,body])=>(
@@ -1278,9 +1320,11 @@ const toggleBlock = async userId => {
             )}
           </button>
           <span style={s.headerTitle}>tecco</span>
-          <div style={s.headerRight}>
-            {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
-          </div>
+         <div style={s.headerRight}>
+  {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
+  <button style={{background:"none",border:"none",color:C.white,fontSize:20,cursor:"pointer",padding:4}}
+    onClick={()=>{setShowSearch(true);setSearchText("");}}>🔍</button>
+</div>
         </div>
       </header>
 
@@ -1447,8 +1491,12 @@ const toggleBlock = async userId => {
               <div style={s.emptyMsg}>まだ通知はありません</div>
             )}
             {notifications.map(n=>(
-              <div key={n.id} style={{...s.userListItem, background:C.white, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${C.border}`}}>
-                <div style={{fontSize:22, marginRight:8, flexShrink:0}}>
+  <div key={n.id} style={{...s.userListItem, background:C.white, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${C.border}`, cursor:"pointer"}}
+    onClick={()=>{
+      const user = allKnownUsers.find(u=>u.user===n.from_user);
+      if (user) setViewUser(user);
+    }}>
+              <div style={{fontSize:22, marginRight:8, flexShrink:0}}>
                   {n.type==="like"?"❤️":n.type==="comment"?"💬":"👥"}
                 </div>
                 <div style={s.userListAvatar}>{n.from_avatar}</div>
@@ -1539,6 +1587,16 @@ const toggleBlock = async userId => {
             ))}
             <button style={s.addChildBtn} onClick={openAddChild}>＋ 子どもを追加</button>
             <div style={s.secTitle}>📝 自分の投稿</div>
+            {pinnedIds.length>0 && (
+  <>
+    <div style={{...s.secTitle, color:C.coral}}>📌 固定投稿</div>
+    {myPosts.filter(p=>pinnedIds.includes(p.id)).map(p=>(
+      <PostCard key={p.id} {...pcp(p)}/>
+    ))}
+    <div style={{...s.secTitle, marginTop:12}}>その他の投稿</div>
+  </>
+)}
+{myPosts.filter(p=>!pinnedIds.includes(p.id)).map(p=><PostCard key={p.id} {...pcp(p)}/>)}
             {myPosts.length===0 && <div style={s.emptyMsg}>まだ投稿がありません</div>}
             {myPosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
             <div style={{...s.secTitle,marginTop:20}}>💌 要望・フィードバック</div>
@@ -1605,7 +1663,12 @@ const toggleBlock = async userId => {
                     <div key={f.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",lineHeight:1.5,opacity:f.checked?0.5:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <input type="checkbox" checked={f.checked||false}
-                          onChange={()=>setFeedbacks(p=>p.map(x=>x.id===f.id?{...x,checked:!x.checked}:x))}/>
+                         onChange={async()=>{
+                              const newChecked = !f.checked;
+                              await supabase.from("feedbacks").update({is_checked:newChecked}).eq("id",f.id);
+                             setFeedbacks(p=>p.map(x=>x.id===f.id?{...x,checked:newChecked}:x));
+                             }}
+                             />
                         <span>💌 {f.text}</span>
                         {f.checked && <span style={{fontSize:11,color:C.green,fontWeight:700}}>確認済み</span>}
                       </div>
@@ -1649,13 +1712,55 @@ const toggleBlock = async userId => {
     </div>
   )}
 </div>
-            <button style={s.logoutBtn} onClick={handleLogout}>ログアウト</button>
+
+            <button style={s.logoutBtn} onClick={handleLogout}>ログアウトする</button>
             <div style={{height:8}}/>
+            <button style={{...s.logoutBtn, color:C.red, borderColor:`${C.red}66`, marginTop:8}}
+  onClick={handleDeleteAccount}>
+  退会する
+</button>
           </>
+          
         )}
       </main>
 
       {tab!=="spots" && <button style={s.fab} onClick={()=>tab==="board"?setBoardComposing(true):setComposing(true)}>＋ 投稿する</button>}
+{showSearch && (
+  <Overlay onClose={()=>setShowSearch(false)}>
+    <div style={s.modalHeader}>
+      <button style={s.closeBtn} onClick={()=>setShowSearch(false)}>✕</button>
+      <span style={s.modalTitle}>ユーザーを検索</span>
+      <div style={{width:40}}/>
+    </div>
+    <div style={{padding:"12px 16px"}}>
+      <input style={{...s.formInput, marginBottom:12}} autoFocus
+        placeholder="名前またはIDで検索"
+        value={searchText} onChange={e=>setSearchText(e.target.value)}/>
+      {allKnownUsers
+        .filter(u=>
+          u.userId!==profile?.userId &&
+          searchText.trim()!=="" &&
+          (u.user.includes(searchText) || u.userId.includes(searchText))
+        )
+        .map(u=>(
+          <div key={u.userId} style={{...s.userListItem, cursor:"pointer"}}
+            onClick={()=>{setShowSearch(false);setViewUser(u);}}>
+            <div style={s.userListAvatar}>{u.avatar}</div>
+            <div style={{flex:1}}>
+              <div style={s.userListName}>{u.user}</div>
+              <div style={s.userListId}>@{u.userId}</div>
+            </div>
+          </div>
+        ))}
+      {searchText.trim()!=="" && allKnownUsers.filter(u=>
+        u.userId!==profile?.userId &&
+        (u.user.includes(searchText) || u.userId.includes(searchText))
+      ).length===0 && (
+        <div style={s.emptyMsg}>見つかりませんでした</div>
+      )}
+    </div>
+  </Overlay>
+)}
 
       {composing && (
         <Overlay onClose={()=>setComposing(false)}>
