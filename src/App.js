@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
 
+// ════════════════════════════════════════
+// デザイントークン
+// ════════════════════════════════════════
 
-// ── デザイントークン ── 
 const C = {
   coral:"#F5C97A", coralLight:"#F7D88B", coralPale:"#FEF7E6", coralBg:"#FEFBF0",
   white:"#FFFFFF", beige:"#F7F2EE", beigeLight:"#FAF7F4", border:"#EDE5DF",
@@ -13,7 +15,11 @@ const C = {
   red:"#E05252", redPale:"#FEECEC",
 };
 
-// ── 定数 ──
+
+// ════════════════════════════════════════
+// 定数
+// ════════════════════════════════════════
+
 const AREAS        = ["県央","県北","県南","沿岸","県外"];
 const FILTER_AREAS = ["全域",...AREAS];
 const AGE_GROUPS   = ["全員","妊婦","0〜6ヶ月","6〜12ヶ月","1〜2歳","3〜6歳（園児期）","小学校低学年","小学校高学年","中学生","高校生"];
@@ -21,9 +27,11 @@ const CHILD_AGES   = ["妊娠中","0〜6ヶ月","6〜12ヶ月","1〜2歳","3〜6
 const AVATARS      = ["🌸","🌻","🍀","🐟","🌺","🌷","🦋","🐣","🌼","🍓","🐨","🌙"];
 const BOARD_CATS   = ["すべて","育児相談","発達・先天障害","妊活・産院","仕事と育児","習い事・受験","マイホーム","家族問題","その他"];
 const BOARD_ICONS  = {"育児相談":"💬","発達・先天障害":"🌈","妊活・産院":"🌷","仕事と育児":"💼","習い事・受験":"✏️","マイホーム":"🏠","家族問題":"👨‍👩‍👧","その他":"📝"};
-const ADMIN_ID    = "admin";
-const OFFICIAL_ID = "tecco_official";
+const ADMIN_ID     = "admin";
+const OFFICIAL_ID  = "tecco_official";
 const SPOT_TYPES   = ["すべて","支援センター","室内遊び場","公園","勉強スペース","その他"];
+
+// 月齢フィルター用マッピング（フィルター選択値 → 投稿の childAges に含まれうる文字列）
 const AGE_MAP = {
   "妊婦":["妊娠中","妊娠"],
   "0〜6ヶ月":["0〜6ヶ月","0ヶ月","1ヶ月","2ヶ月","3ヶ月","4ヶ月","5ヶ月","6ヶ月"],
@@ -35,13 +43,20 @@ const AGE_MAP = {
   "中学生":["中学生","中1","中2","中3"],
   "高校生":["高校生","高1","高2","高3"],
 };
+
+// 公開範囲の表示設定
 const SC_COLOR = {all:C.green, wall:C.coral, followers:C.purple};
 const SC_SHORT = {all:"🌍 全員", wall:"🪞 自分のみ", followers:"👥 フォロワー"};
 const SC_LONG  = {all:"🌍 全員に公開", wall:"🪞 自分のみ（自分のみ）", followers:"👥 フォロワーのみ"};
 const SC_DESC  = {all:"すべてのユーザーに表示", wall:"自分だけが見られる日記", followers:"フォロワーだけに表示"};
 
-// ── スタイル ──
+
+// ════════════════════════════════════════
+// スタイル
+// ════════════════════════════════════════
+
 const s = {
+  // ── 認証画面 ──
   authRoot:{minHeight:"100vh",background:C.coralBg,display:"flex",alignItems:"center",justifyContent:"center"},
   authInner:{width:"100%",maxWidth:400,padding:"0 20px",boxSizing:"border-box"},
   authHero:{textAlign:"center",paddingTop:48,paddingBottom:32},
@@ -56,11 +71,14 @@ const s = {
   authBtnSub:{display:"block",width:"100%",padding:"12px",background:C.white,color:C.coral,border:`1.5px solid ${C.coral}`,borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:10},
   authLink:{display:"block",textAlign:"center",fontSize:13,color:C.textSub,marginTop:8,cursor:"pointer",textDecoration:"underline"},
   authError:{background:C.redPale,border:`1px solid ${C.red}44`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.red,marginBottom:10},
+  authNote:{textAlign:"center",fontSize:11,color:C.textMuted,marginTop:12},
+  // ── 同意チェックボックス ──
   checkRow:{display:"flex",alignItems:"flex-start",gap:10,margin:"8px 0",cursor:"pointer"},
   checkBox:{width:20,height:20,borderRadius:5,border:`2px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1},
   checkBoxOn:{width:20,height:20,borderRadius:5,border:`2px solid ${C.coral}`,background:C.coral,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1},
   checkLabel:{fontSize:13,color:C.text,lineHeight:1.5},
   checkLink:{color:C.coral,fontWeight:700,textDecoration:"underline",cursor:"pointer"},
+  // ── 利用規約・PPモーダル ──
   termsOverlay:{position:"fixed",inset:0,background:"rgba(50,30,20,0.5)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16},
   termsSheet:{background:C.white,borderRadius:20,width:"100%",maxWidth:440,maxHeight:"80vh",display:"flex",flexDirection:"column",overflow:"hidden"},
   termsHeader:{padding:"16px 20px 12px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0},
@@ -69,7 +87,7 @@ const s = {
   termsFooter:{padding:"12px 20px 20px",borderTop:`1px solid ${C.border}`,flexShrink:0},
   termsAgreeBtn:{display:"block",width:"100%",padding:"12px",background:C.coral,color:C.white,border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer"},
   termsSectionTitle:{fontWeight:700,fontSize:14,color:C.coral,margin:"16px 0 6px"},
-  authNote:{textAlign:"center",fontSize:11,color:C.textMuted,marginTop:12},
+  // ── メイン画面レイアウト ──
   root:{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:C.beigeLight,paddingBottom:80},
   header:{background:C.coral,padding:"13px 16px",position:"sticky",top:0,zIndex:100,boxShadow:`0 1px 8px rgba(180,100,70,0.18)`},
   headerInner:{display:"flex",alignItems:"center",justifyContent:"space-between"},
@@ -87,6 +105,7 @@ const s = {
   emptyMsg:{textAlign:"center",color:C.textMuted,padding:"48px 0",fontSize:14},
   tagBanner:{background:C.greenPale,borderBottom:`1px solid ${C.green}44`,padding:"8px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,color:C.green,fontWeight:600},
   tagBannerBtn:{background:"none",border:"none",color:C.green,fontWeight:700,cursor:"pointer",fontSize:13},
+  // ── 投稿カード ──
   card:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 1px 6px rgba(0,0,0,0.05)",border:`1px solid ${C.border}`,position:"relative"},
   cardTop:{display:"flex",gap:10,marginBottom:8},
   avatarBtn:{background:"none",border:"none",padding:0,cursor:"pointer",flexShrink:0},
@@ -109,6 +128,7 @@ const s = {
   inlineMenu:{position:"absolute",right:12,top:56,background:C.white,borderRadius:12,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",border:`1px solid ${C.border}`,zIndex:50,minWidth:150,overflow:"hidden"},
   menuItem:{display:"block",width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:13,cursor:"pointer",color:C.text},
   menuItemDanger:{display:"block",width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:13,cursor:"pointer",color:C.red},
+  // ── コメント ──
   commentSection:{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10},
   commentRow:{display:"flex",gap:8,marginBottom:10},
   commentAvatar:{width:28,height:28,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,border:`1.5px solid ${C.coralLight}`},
@@ -122,6 +142,7 @@ const s = {
   commentInputRow:{display:"flex",gap:8,marginTop:8},
   commentInput:{flex:1,padding:"8px 13px",borderRadius:20,border:`1.5px solid ${C.border}`,fontSize:13,outline:"none",background:C.beigeLight},
   commentSendBtn:{padding:"8px 16px",borderRadius:20,background:C.coral,border:"none",fontSize:12,fontWeight:700,color:C.white,cursor:"pointer"},
+  // ── 投稿ボタン・オーバーレイ ──
   fab:{position:"fixed",bottom:"42%",right:20,height:56,borderRadius:28,background:C.coral,border:"none",fontSize:15,fontWeight:800,boxShadow:`0 4px 16px ${C.coral}66`,cursor:"pointer",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",color:C.white,gap:8,padding:"0 26px"},
   overlayBg:{position:"fixed",inset:0,background:"rgba(50,30,20,0.40)",zIndex:300,display:"flex",alignItems:"flex-end"},
   modalSheet:{width:"100%",maxWidth:480,margin:"0 auto",background:C.white,borderRadius:"20px 20px 0 0",paddingBottom:8},
@@ -129,6 +150,7 @@ const s = {
   modalTitle:{fontWeight:800,fontSize:16,color:C.text},
   closeBtn:{background:"none",border:"none",fontSize:18,cursor:"pointer",color:C.textMuted,padding:4},
   postBtn:{background:C.coral,color:C.white,border:"none",borderRadius:20,padding:"8px 22px",fontWeight:800,fontSize:14,cursor:"pointer"},
+  // ── 投稿フォーム ──
   composeUser:{display:"flex",gap:10,alignItems:"center",padding:"12px 16px 4px"},
   composeAvatar:{width:40,height:40,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,border:`2px solid ${C.coralLight}`},
   composeUserName:{fontWeight:700,fontSize:14,color:C.text},
@@ -147,6 +169,7 @@ const s = {
   tagChip:{fontSize:13,color:C.purple,background:C.purplePale,borderRadius:8,padding:"3px 9px",display:"flex",alignItems:"center",gap:4},
   tagRemove:{background:"none",border:"none",cursor:"pointer",color:C.purple,fontSize:14,padding:0,lineHeight:1},
   charCount:{fontSize:11,color:C.textMuted,textAlign:"right",padding:"6px 16px 12px"},
+  // ── 掲示板 ──
   boardCatBar:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12},
   boardCatBtn:{padding:"6px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer"},
   boardNotice:{background:"#FFF8E6",color:"#7A5C00",borderRadius:12,padding:"10px 14px",fontSize:12,lineHeight:1.6,marginBottom:12,border:"1px solid #FFE49A"},
@@ -156,6 +179,7 @@ const s = {
   boardTime:{fontSize:11,color:C.textMuted},
   boardContent:{fontSize:14,color:C.text,lineHeight:1.65,margin:"0 0 8px"},
   boardReplyBtn:{background:"none",border:"none",fontSize:12,color:C.purple,fontWeight:600,cursor:"pointer",padding:0},
+  // ── マイページ ──
   myCard:{background:C.white,borderRadius:16,padding:"18px",display:"flex",gap:14,alignItems:"flex-start",marginBottom:16,border:`1px solid ${C.border}`},
   myAvatarBox:{width:58,height:58,borderRadius:"50%",background:C.coral,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0},
   myName:{fontWeight:800,fontSize:17,color:C.text},
@@ -173,6 +197,7 @@ const s = {
   statItem:{textAlign:"center",cursor:"pointer"},
   statNum:{fontWeight:800,fontSize:22,color:C.coral},
   statLabel:{fontSize:12,color:C.textMuted,marginTop:2},
+  // ── ユーザー一覧・他ユーザーページ ──
   userListItem:{display:"flex",gap:10,alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${C.border}`},
   userListAvatar:{width:36,height:36,borderRadius:"50%",background:C.coralPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`1.5px solid ${C.coralLight}`},
   userListName:{fontWeight:700,fontSize:14,color:C.text},
@@ -183,11 +208,13 @@ const s = {
   followBtn:{background:C.coral,color:C.white,border:"none",borderRadius:20,padding:"9px 28px",fontWeight:800,fontSize:14,cursor:"pointer",marginTop:12},
   unfollowBtnLg:{background:C.white,border:`2px solid ${C.coral}`,color:C.coral,borderRadius:20,padding:"9px 28px",fontWeight:800,fontSize:14,cursor:"pointer",marginTop:12},
   frozenBanner:{background:C.redPale,border:`1px solid ${C.red}44`,borderRadius:12,padding:"10px 14px",fontSize:13,color:C.red,margin:"12px 12px 0",textAlign:"center"},
+  // ── 管理者パネル ──
   adminPanel:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,border:"2px solid #FFE49A"},
   adminTitle:{fontWeight:800,fontSize:15,color:"#7A5C00",marginBottom:10},
   adminUserRow:{display:"flex",gap:8,alignItems:"center",padding:"8px 0",borderBottom:"1px solid #FFF3C4"},
   adminFreezeBtn:{background:C.redPale,border:`1px solid ${C.red}44`,color:C.red,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",marginLeft:"auto"},
   adminUnfreezeBtn:{background:C.greenPale,border:`1px solid ${C.green}44`,color:C.green,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer",marginLeft:"auto"},
+  // ── フィードバック・フォーム共通 ──
   reportSection:{background:C.white,borderRadius:16,padding:"16px",marginBottom:10,border:`1px solid ${C.border}`},
   reportTitle:{fontWeight:800,fontSize:15,color:C.text,marginBottom:10},
   feedbackArea:{width:"100%",padding:"10px 12px",borderRadius:10,border:`1.5px solid ${C.purplePale}`,fontSize:13,outline:"none",background:"#FAFAFF",boxSizing:"border-box",fontFamily:"inherit",resize:"none",lineHeight:1.6,color:C.text},
@@ -201,10 +228,12 @@ const s = {
   radioBtn:{padding:"7px 10px",borderRadius:10,border:"1.5px solid",fontSize:12,fontWeight:600,cursor:"pointer"},
   deleteBtn:{display:"block",width:"calc(100% - 32px)",margin:"16px 16px 0",padding:"10px",background:"none",border:`1.5px solid ${C.red}66`,borderRadius:12,color:C.red,fontSize:13,fontWeight:700,cursor:"pointer"},
   logoutBtn:{display:"block",width:"100%",marginTop:24,padding:"13px",background:"none",border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textSub,fontSize:14,fontWeight:700,cursor:"pointer"},
+  // ── 寄付セクション ──
   donateSection:{background:`linear-gradient(135deg,${C.coralPale},#FFF8E6)`,borderRadius:16,padding:"20px",marginBottom:10,border:`1px solid ${C.coralLight}`,textAlign:"center"},
   donateTitle:{fontWeight:800,fontSize:16,color:C.coral,marginBottom:6},
   donateDesc:{fontSize:13,color:C.textSub,lineHeight:1.6,marginBottom:14},
   donateBtn:{display:"inline-block",padding:"12px 32px",background:C.coral,color:C.white,border:"none",borderRadius:20,fontSize:15,fontWeight:800,cursor:"pointer"},
+  // ── 遊び場タブ ──
   spotFilterBar:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12},
   spotFilterBtn:{padding:"6px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer"},
   spotCard:{background:C.white,borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid ${C.border}`,boxShadow:"0 1px 6px rgba(0,0,0,0.05)"},
@@ -222,7 +251,12 @@ const s = {
   spotReviewTime:{fontSize:11,color:C.textMuted,marginTop:2},
 };
 
-// ── オーバーレイ ──
+
+// ════════════════════════════════════════
+// 共通コンポーネント
+// ════════════════════════════════════════
+
+// 画面下から出るモーダルの共通ラッパー
 function Overlay({children, onClose, scrollable}) {
   return (
     <div style={s.overlayBg} onClick={onClose}>
@@ -234,7 +268,7 @@ function Overlay({children, onClose, scrollable}) {
   );
 }
 
-// ── ポストカード ──
+// タイムライン・ユーザーページで使う投稿カード
 function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,isOpen,onToggleComments,commentText,onCommentChange,onCommentSubmit,onDelete,onDeleteComment,onReport,isAdmin,isMine,profileUserId,onPin,isPinned}) {
   const [menuOpen,setMenuOpen] = useState(false);
   const uInfo = {user:post.user,userId:post.userId,avatar:post.avatar,area:post.area};
@@ -244,9 +278,11 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         <div style={s.inlineMenu}>
           {(isMine||isAdmin) && <button style={s.menuItemDanger} onClick={()=>{onDelete(post.id);setMenuOpen(false);}}>🗑️ 削除する</button>}
           {!isMine && <button style={s.menuItem} onClick={()=>{onReport(post.id,post.user);setMenuOpen(false);}}>🚩 通報する</button>}
-          {isMine && <button style={s.menuItem} onClick={()=>{onPin(post.id);setMenuOpen(false);}}>
-  {isPinned?"📌 固定を解除":"📌 マイページに固定"}
-</button>}
+          {isMine && (
+            <button style={s.menuItem} onClick={()=>{onPin(post.id);setMenuOpen(false);}}>
+              {isPinned?"📌 固定を解除":"📌 マイページに固定"}
+            </button>
+          )}
           <button style={{...s.menuItem,color:C.textMuted}} onClick={()=>setMenuOpen(false)}>閉じる</button>
         </div>
       )}
@@ -294,19 +330,20 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
                 onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
                 {c.avatar}
               </div>
-             <div style={{flex:1}}>
+              <div style={{flex:1}}>
                 <div style={s.commentNameRow}>
                   <span style={{...s.commentUser,cursor:"pointer"}}
                     onClick={()=>onUserClick({user:c.user,userId:c.userId,avatar:c.avatar,area:""})}>
                     {c.user}
                   </span>
                   <span style={s.commentUserId}>@{c.userId}</span>
-                  {(c.userId===post.userId||c.userId===profileUserId||isAdmin) && <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>}
+                  {(c.userId===post.userId||c.userId===profileUserId||isAdmin) && (
+                    <button style={s.commentDeleteBtn} onClick={()=>onDeleteComment(post.id,c.id)}>削除</button>
+                  )}
                 </div>
                 <div style={s.commentText}>{c.text}</div>
                 <div style={s.commentTime}>{c.time}</div>
               </div>
-
             </div>
           ))}
           <div style={s.commentInputRow}>
@@ -322,88 +359,128 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
 }
 
 
-// ── 宣言 ──
+// ════════════════════════════════════════
+// App（state宣言）
+// ════════════════════════════════════════
+
 function App() {
-  const [screen,setScreen]           = useState("login");
-  const [tab,setTab]                 = useState("timeline");
-  const [filterArea,setFilterArea]   = useState("全域");
-  const [filterAge,setFilterAge]     = useState("全員");
-  const [boardCat,setBoardCat]       = useState("すべて");
-  const [posts,setPosts]             = useState([]);
-  const [boards,setBoards]           = useState([]);
-  const [users, setUsers]            = useState([]);
-  const [frozenIds, setFrozenIds] = useState(new Set());   
-  const [reports,setReports]         = useState([]);
-  const [feedbacks,setFeedbacks]     = useState([]);
-  const [likedIds,setLikedIds]       = useState(new Set());
-  const [dislikedIds,setDislikedIds] = useState(new Set());
+
+  // ── 画面制御 ──
+  const [screen,setScreen]     = useState("login"); // login / signup / main
+  const [tab,setTab]           = useState("timeline");
+
+  // ── フィルター・検索 ──
+  const [filterArea,setFilterArea]       = useState("全域");
+  const [filterAge,setFilterAge]         = useState("全員");
+  const [boardCat,setBoardCat]           = useState("すべて");
+  const [timelineFilter,setTimelineFilter] = useState("all"); // all / following
+  const [tagSearch,setTagSearch]         = useState(null);
+  const [showSearch,setShowSearch]       = useState(false);
+  const [searchText,setSearchText]       = useState("");
+
+  // ── データ ──
+  const [posts,setPosts]         = useState([]);
+  const [boards,setBoards]       = useState([]);
+  const [spots,setSpots]         = useState([]);
+  const [users,setUsers]         = useState([]);
+  const [reports,setReports]     = useState([]);
+  const [feedbacks,setFeedbacks] = useState([]);
+  const [notifications,setNotifications] = useState([]);
+
+  // ── ユーザー状態 ──
   const [profile,setProfile]         = useState(null);
   const [following,setFollowing]     = useState([]);
-  const [followerIds, setFollowerIds] = useState([]);
-  const [lastSeenTimeline,setLastSeenTimeline] = useState(Date.now()); // タイムライン最終閲覧時刻
-  const [lastSeenBoard,setLastSeenBoard]       = useState(Date.now()); // 掲示板最終閲覧時刻
-  const [,setNewFollowers]         = useState([]); // 新しいフォロワーのuserId一覧
-  const [seenNotif,setSeenNotif]               = useState(false); // 通知タブを見たか
-  const [tagSearch,setTagSearch]     = useState(null);
-  const [viewUser,setViewUser]       = useState(null);
-  const [openPostId,setOpenPostId]   = useState(null);
-  const [openBoardId,setOpenBoardId] = useState(null);
-  const [commentText,setCommentText] = useState("");
-  const [boardCommentText,setBoardCommentText] = useState("");
+  const [followerIds,setFollowerIds] = useState([]);
+  const [frozenIds,setFrozenIds]     = useState(new Set());
+  const [blockedIds,setBlockedIds]   = useState([]);
+
+  // ── リアクション・固定 ──
+  const [likedIds,setLikedIds]     = useState(new Set());
+  const [dislikedIds,setDislikedIds] = useState(new Set());
+  const [pinnedIds,setPinnedIds]   = useState([]);
+
+  // ── バッジ・通知管理 ──
+  const [lastSeenTimeline,setLastSeenTimeline] = useState(Date.now());
+  const [lastSeenBoard,setLastSeenBoard]       = useState(Date.now());
+  const [,setNewFollowers]                     = useState([]);
+  const [seenNotif,setSeenNotif]               = useState(false);
+
+  // ── UI開閉状態 ──
+  const [openPostId,setOpenPostId]   = useState(null); // コメント展開中の投稿ID
+  const [openBoardId,setOpenBoardId] = useState(null); // コメント展開中の掲示板ID
+  const [openSpotId,setOpenSpotId]   = useState(null); // 展開中のスポットID
+  const [viewUser,setViewUser]       = useState(null); // 表示中の他ユーザー情報
+  const [viewSpot,setViewSpot]       = useState(null); // 表示中のスポットID
   const [showFollowers,setShowFollowers] = useState(false);
   const [showFollowing,setShowFollowing] = useState(false);
+
+  // ── 投稿フォーム ──
+  const [composing,setComposing]     = useState(false);
   const [draftText,setDraftText]     = useState("");
   const [draftScope,setDraftScope]   = useState("all");
   const [draftTag,setDraftTag]       = useState("");
   const [draftTags,setDraftTags]     = useState([]);
-  const [boardComposing,setBoardComposing] = useState(false);
-  const [boardDraftCat,setBoardDraftCat]   = useState("育児相談");
-  const [boardDraftText,setBoardDraftText] = useState("");
-  const [composing,setComposing]           = useState(false);
-  const [editProf,setEditProf]             = useState(false);
-  const [spots,setSpots]             = useState([]);
-  const [spotArea,setSpotArea]       = useState("すべて");
-  const [spotType,setSpotType]       = useState("すべて");
-  const [openSpotId,setOpenSpotId]   = useState(null);
-  const [spotReviewText, setSpotReviewText] = useState("");
-  const [viewSpot,setViewSpot]       = useState(null);
-  const [profDraft,setProfDraft]     = useState(null);
-  const [childMode,setChildMode]     = useState(null);
-  const [childDraft,setChildDraft]   = useState(null);
+  const [commentText,setCommentText] = useState("");
+
+  // ── 掲示板フォーム ──
+  const [boardComposing,setBoardComposing]   = useState(false);
+  const [boardDraftCat,setBoardDraftCat]     = useState("育児相談");
+  const [boardDraftText,setBoardDraftText]   = useState("");
+  const [boardCommentText,setBoardCommentText] = useState("");
+
+  // ── プロフィール編集 ──
+  const [editProf,setEditProf]   = useState(false);
+  const [profDraft,setProfDraft] = useState(null);
+  const [childMode,setChildMode] = useState(null);   // null / "new" / "edit"
+  const [childDraft,setChildDraft] = useState(null);
+
+  // ── 遊び場 ──
+  const [spotArea,setSpotArea]           = useState("すべて");
+  const [spotType,setSpotType]           = useState("すべて");
+  const [spotReviewText,setSpotReviewText] = useState("");
+  const [editingSpot,setEditingSpot]     = useState(null);
+
+  // ── フィードバック ──
   const [feedbackText,setFeedbackText] = useState("");
   const [feedbackSent,setFeedbackSent] = useState(false);
+
+  // ── ログインフォーム ──
   const [loginId,setLoginId]         = useState("");
   const [loginPw,setLoginPw]         = useState("");
   const [loginError,setLoginError]   = useState("");
-  const [signupName,setSignupName]   = useState("");
-  const [signupId,setSignupId]       = useState("");
-  const [signupPw,setSignupPw]       = useState("");
-  const [signupArea,setSignupArea]   = useState("県央");
+  const [loginAttempts,setLoginAttempts] = useState(0);
+
+  // ── サインアップフォーム ──
+  const [signupName,setSignupName]     = useState("");
+  const [signupId,setSignupId]         = useState("");
+  const [signupPw,setSignupPw]         = useState("");
+  const [signupArea,setSignupArea]     = useState("県央");
   const [signupAvatar,setSignupAvatar] = useState("🌸");
-  const [signupError,setSignupError] = useState("");
-  const [showTerms,setShowTerms]     = useState(false);   // 利用規約モーダル
-  const [showPrivacy,setShowPrivacy] = useState(false);   // PPモーダル
-  const [agreedTerms,setAgreedTerms] = useState(false);   // 利用規約同意
-  const [agreedPrivacy,setAgreedPrivacy] = useState(false); // PP同意
-  const [notifications, setNotifications] = useState([]);
-  const [blockedIds, setBlockedIds] = useState([]);
+  const [signupError,setSignupError]   = useState("");
+  const [showTerms,setShowTerms]       = useState(false);
+  const [showPrivacy,setShowPrivacy]   = useState(false);
+  const [agreedTerms,setAgreedTerms]   = useState(false);
+  const [agreedPrivacy,setAgreedPrivacy] = useState(false);
+
+  // ── パスワード変更 ──
+  const [showChangePw,setShowChangePw] = useState(false);
+  const [newPw,setNewPw]               = useState("");
+  const [newPwConfirm,setNewPwConfirm] = useState("");
+  const [pwError,setPwError]           = useState("");
+  const [pwSuccess,setPwSuccess]       = useState(false);
+
+  // ── 派生値 ──
   const isAdmin = profile?.userId === ADMIN_ID;
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
-  const followerList = allKnownUsers.filter(u => followerIds.includes(u.userId));
-  const [timelineFilter, setTimelineFilter] = useState("all");
-  const [loginAttempts, setLoginAttempts] = useState(0);
-  const [showChangePw, setShowChangePw] = useState(false);
-  const [newPw, setNewPw] = useState("");
-  const [newPwConfirm, setNewPwConfirm] = useState("");
-  const [pwError, setPwError] = useState("");
-  const [pwSuccess, setPwSuccess] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const [pinnedIds, setPinnedIds] = useState([]);
+  const followerList  = allKnownUsers.filter(u=>followerIds.includes(u.userId));
 
-  // バッジ計算
-  // HOMEバッジ：フォロー中ユーザー（公式含む）の新着投稿数
+
+// ════════════════════════════════════════
+// バッジ計算
+// ════════════════════════════════════════
+
+  // HOMEバッジ：フォロー中ユーザー（公式含む）の最終閲覧以降の新着投稿数
   const timelineBadge = posts.filter(p =>
     (following.includes(p.userId) || p.userId === OFFICIAL_ID) &&
     p.userId !== profile?.userId &&
@@ -411,161 +488,87 @@ function App() {
     p._ts > lastSeenTimeline
   ).length;
 
-  // 掲示板バッジ：自分が関わった掲示板スレッドへの新着コメント数
+  // 掲示板バッジ：最終閲覧以降に新しいコメントがついたスレッド数
   const boardBadge = boards.reduce((acc, b) => {
-    const myRelated = b.comments.some(c => c._ts && c._ts > lastSeenBoard);
-    return acc + (myRelated ? 1 : 0);
+    const hasNew = b.comments.some(c => c._ts && c._ts > lastSeenBoard);
+    return acc + (hasNew ? 1 : 0);
   }, 0);
 
-  // 通知バッジ：未確認の新しいフォロワー数
+  // 通知バッジ：通知タブを開くまでの未読通知数
   const notifBadge = seenNotif ? 0 : notifications.length;
 
 
-//ログイン
-const handleLogin = async () => {
-    setLoginError("");
-    if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
-    if (loginId===ADMIN_ID&&loginPw==="admin"){
-      setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
-      setTab("timeline");setScreen("main");return;
+// ════════════════════════════════════════
+// 初期化・データ取得
+// ════════════════════════════════════════
+
+  // 通知のリアルタイム受信（ログイン後、自分宛ての INSERT をリッスン）
+  useEffect(() => {
+    if (!profile?.userId) return;
+    const channel = supabase
+      .channel("notifications")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "notifications",
+        filter: `user_id=eq.${profile.userId}`,
+      }, payload => {
+        setNotifications(prev => [payload.new, ...prev]);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [profile?.userId]);
+
+  // アプリ起動時：セッション復元 + 全データ取得
+  const initSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const saved = localStorage.getItem("tecco_user");
+    if (session && saved) {
+      const savedProfile = JSON.parse(saved);
+      setProfile(savedProfile);
+      const {data:userData} = await supabase.from("users").select("pinned_ids").eq("user_id", savedProfile.userId).single();
+      if (userData?.pinned_ids) setPinnedIds(JSON.parse(userData.pinned_ids));
+      setScreen("main");
+    } else {
+      localStorage.removeItem("tecco_user");
     }
-    const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
-    if (error||!data){setLoginError("このIDは登録されていません");return;}
-    if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
+  };
 
-    const fakeEmail = `${loginId}@tecco.app`;
-    const {error:authError} = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password: loginPw,
-    });
-    if (authError) {
-      if (data.password === loginPw) {
-        const {data:signUpData, error:signUpError} = await supabase.auth.signUp({
-          email: fakeEmail,
-          password: loginPw,
-        });
-        if (signUpError){setLoginError("ログインに失敗しました");return;}
-        await supabase.from("users")
-          .update({auth_id: signUpData.user.id})
-          .eq("user_id", loginId);
-      } else {
-        setLoginError("パスワードが違います");
-       setLoginAttempts(p=>p+1);
-       return;
-      }
+  const fetchAll = async () => {
+    // 投稿＋いいね数
+    const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
+    const {data:likesCount} = await supabase.from("likes").select("post_id, type");
+    if (postsData) {
+      setPosts(postsData.map(p=>({
+        id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
+        childAges:JSON.parse(p.child_ages||"[]"),
+        content:p.content,
+        time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+        _ts:new Date(p.created_at).getTime(),
+        likes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="like").length : 0,
+        dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
+        scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
+      })));
     }
-    setLoginAttempts(0);
-    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
-    const savedPins = data.pinned_ids ? JSON.parse(data.pinned_ids) : [];
-setPinnedIds(savedPins);
-    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
-    setTab("timeline");setScreen("main");
-  };
-
- //サインアップ
-  const handleSignup = async () => {
-    setSignupError("");
-    if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
-    if (signupId===ADMIN_ID){setSignupError("このIDは使用できません");return;}
-    if (signupPw.length<6){setSignupError("パスワードは6文字以上にしてください");return;}
-    const {data:existing} = await supabase.from("users").select("user_id").eq("user_id",signupId).single();
-    if (existing){setSignupError("このIDはすでに使われています");return;}
-
-    const fakeEmail = `${signupId}@tecco.app`;
-    const {data:authData, error:authError} = await supabase.auth.signUp({
-      email: fakeEmail,
-      password: signupPw,
-    });
-    if (authError){setSignupError("登録に失敗しました: " + authError.message);return;}
-
-    const {error} = await supabase.from("users").insert({
-      user_id:signupId, name:signupName, area:signupArea,
-      avatar:signupAvatar, bio:"", auth_id:authData.user.id
-    });
-    if (error){setSignupError("登録に失敗しました");return;}
-
-    setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
-    localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
-    await supabase.from("follows").insert({follower_id:signupId, following_id:OFFICIAL_ID});
-    setFollowing([OFFICIAL_ID]);
-    setTab("timeline");setScreen("main");
-  };
-
-//ログアウト
-const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("tecco_user");
-    setProfile(null);setFollowing([]);
-    setLikedIds(new Set());setDislikedIds(new Set());
-    setTagSearch(null);setViewUser(null);setTab("timeline");
-    setLoginId("");setLoginPw("");setScreen("login");
-  };
-  const handleDeleteAccount = async () => {
-  if (!window.confirm("本当に退会しますか？\nこの操作は取り消せません。")) return;
-  await supabase.from("posts").delete().eq("user_id", profile.userId);
-  await supabase.from("comments").delete().eq("user_id", profile.userId);
-  await supabase.from("follows").delete().eq("follower_id", profile.userId);
-  await supabase.from("follows").delete().eq("following_id", profile.userId);
-  await supabase.from("likes").delete().eq("user_id", profile.userId);
-  await supabase.from("users").delete().eq("user_id", profile.userId);
-  await supabase.auth.signOut();
-  localStorage.removeItem("tecco_user");
-  setProfile(null);setFollowing([]);
-  setLikedIds(new Set());setDislikedIds(new Set());
-  setTab("timeline");setScreen("login");
-};
-
-
-  // ── Supabaseデータ読み込み ──
- useEffect(() => {
-    const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const saved = localStorage.getItem("tecco_user");
-      if (session && saved) {
-  const savedProfile = JSON.parse(saved);
-  setProfile(savedProfile);
-  const {data:userData} = await supabase.from("users").select("pinned_ids").eq("user_id", savedProfile.userId).single();
-  if (userData?.pinned_ids) setPinnedIds(JSON.parse(userData.pinned_ids));
-  setScreen("main");
-}
-      else {
-        localStorage.removeItem("tecco_user");
-      }
-    };
-    initSession();
-
-    const fetchAll = async () => {
-      const {data:postsData} = await supabase.from("posts").select("*").order("created_at",{ascending:false});
-      const {data:likesCount} = await supabase.from("likes").select("post_id, type");
-      if (postsData) {
-        setPosts(postsData.map(p=>({
-          id:p.id, user:p.user, userId:p.user_id, area:p.area, avatar:p.avatar,
-          childAges:JSON.parse(p.child_ages||"[]"),
-          content:p.content,
-          time:new Date(p.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-          _ts:new Date(p.created_at).getTime(),
-          likes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="like").length : 0,
-          dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
-          scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
-        })));
-      }
-      const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
-      if (commentsData) {
-        setPosts(p=>p.map(post=>({
-          ...post,
-          comments: commentsData.filter(c=>c.post_id===post.id).map(c=>({
-            id:c.id, user:c.user, userId:c.user_id, avatar:c.avatar,
-            text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-          }))
-        })));
-      }
-      const {data:boardsData} = await supabase.from("boards").select("*").order("created_at",{ascending:false});
-      if (boardsData) {
-        setBoards(boardsData.map(b=>({
-          id:b.id, category:b.category, content:b.content,
-          time:new Date(b.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}), comments:[],
-        })));
-        const {data:boardCommentsData} = await supabase.from("board_comments").select("*").order("created_at",{ascending:true});
+    // 投稿へのコメント
+    const {data:commentsData} = await supabase.from("comments").select("*").order("created_at",{ascending:true});
+    if (commentsData) {
+      setPosts(p=>p.map(post=>({
+        ...post,
+        comments: commentsData.filter(c=>c.post_id===post.id).map(c=>({
+          id:c.id, user:c.user, userId:c.user_id, avatar:c.avatar,
+          text:c.text, time:new Date(c.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+        }))
+      })));
+    }
+    // 掲示板＋コメント
+    const {data:boardsData} = await supabase.from("boards").select("*").order("created_at",{ascending:false});
+    if (boardsData) {
+      setBoards(boardsData.map(b=>({
+        id:b.id, category:b.category, content:b.content,
+        time:new Date(b.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}), comments:[],
+      })));
+      const {data:boardCommentsData} = await supabase.from("board_comments").select("*").order("created_at",{ascending:true});
       if (boardCommentsData) {
         setBoards(p=>p.map(board=>({
           ...board,
@@ -578,76 +581,155 @@ const handleLogout = async () => {
         })));
       }
     }
-      const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
-      if (spotsData) {
-        setSpots(spotsData.map(sp=>({
-          id:sp.id, name:sp.name, area:sp.area, type:sp.type,
-          address:sp.address, memo:sp.memo, mapUrl:sp.map_url, reviews:[],
-        })));
+    // 遊び場スポット
+    const {data:spotsData} = await supabase.from("spots").select("*").order("created_at",{ascending:true});
+    if (spotsData) {
+      setSpots(spotsData.map(sp=>({
+        id:sp.id, name:sp.name, area:sp.area, type:sp.type,
+        address:sp.address, memo:sp.memo, mapUrl:sp.map_url, reviews:[],
+      })));
+    }
+    // フィードバック
+    const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
+    if (feedbacksData) {
+      setFeedbacks(feedbacksData.map(f=>({
+        id:f.id, text:f.text,
+        time:new Date(f.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+        checked:f.is_checked||false,
+      })));
+    }
+    // ユーザー一覧＋凍結状態
+    const {data:usersData} = await supabase.from("users").select("*");
+    if (usersData) {
+      setUsers(usersData.map(u=>({
+        userId:u.user_id, user:u.name, name:u.name,
+        avatar:u.avatar, area:u.area, bio:u.bio||"",
+      })));
+      setFrozenIds(new Set(usersData.filter(u=>u.is_frozen).map(u=>u.user_id)));
+    }
+    // ログイン中ユーザーのフォロー・いいね・通知・ブロック
+    const savedUser = localStorage.getItem("tecco_user");
+    if (savedUser) {
+      const {userId} = JSON.parse(savedUser);
+      if (!userId) return;
+      const {data:followsData} = await supabase.from("follows").select("following_id").eq("follower_id",userId);
+      if (followsData) setFollowing(followsData.map(f=>f.following_id));
+      const {data:followersData} = await supabase.from("follows").select("follower_id").eq("following_id",userId);
+      if (followersData) setFollowerIds(followersData.map(f=>f.follower_id));
+      const {data:likesData} = await supabase.from("likes").select("*").eq("user_id",userId);
+      if (likesData) {
+        setLikedIds(new Set(likesData.filter(l=>l.type==="like").map(l=>l.post_id)));
+        setDislikedIds(new Set(likesData.filter(l=>l.type==="dislike").map(l=>l.post_id)));
       }
-      const {data:feedbacksData} = await supabase.from("feedbacks").select("*").order("created_at",{ascending:false});
-      if (feedbacksData) {
-        setFeedbacks(feedbacksData.map(f=>({
-  id:f.id, text:f.text,
-  time:new Date(f.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-  checked:f.is_checked||false,
-})));
-      }
-      const {data:usersData} = await supabase.from("users").select("*");
-      if (usersData) {
-        setUsers(usersData.map(u=>({
-          userId:u.user_id, user:u.name, name:u.name,
-          avatar:u.avatar, area:u.area, bio:u.bio||"",
-        })));
-      const frozenUsers = usersData.filter(u=>u.is_frozen).map(u=>u.user_id);
-      setFrozenIds(new Set(frozenUsers)); 
-      }
-      const savedUser = localStorage.getItem("tecco_user");
-      if (savedUser) {
-        const {userId} = JSON.parse(savedUser);
-        const {data:followsData} = await supabase.from("follows").select("following_id").eq("follower_id",userId||"");
-        if (followsData) setFollowing(followsData.map(f=>f.following_id));
-        const {data:followersData} = await supabase
-           .from("follows")
-           .select("follower_id")
-           .eq("following_id", userId);
-        if (followersData) setFollowerIds(followersData.map(f=>f.follower_id));
-      }
-      if (savedUser) {
-        const {userId} = JSON.parse(savedUser);
-        if (userId) {
-          const {data:likesData} = await supabase.from("likes").select("*").eq("user_id", userId);
-          if (likesData) {
-            setLikedIds(new Set(likesData.filter(l=>l.type==="like").map(l=>l.post_id)));
-            setDislikedIds(new Set(likesData.filter(l=>l.type==="dislike").map(l=>l.post_id)));
-         }
-        }
-      }
-      if (savedUser) {
-        const {userId} = JSON.parse(savedUser);
-        if (userId) {
-          const {data:notifsData} = await supabase.from("notifications")
-            .select("*")
-            .eq("user_id", userId)
-            .order("created_at", {ascending:false});
-          if (notifsData) setNotifications(notifsData);
-        }
-      }
-      if (savedUser) {
-        const {userId} = JSON.parse(savedUser);
-        if (userId) {
-          const {data:blocksData} = await supabase.from("blocks")
-            .select("blocked_id")
-            .eq("blocker_id", userId);
-          if (blocksData) setBlockedIds(blocksData.map(b=>b.blocked_id));
-        }
-      }
-    };
+      const {data:notifsData} = await supabase.from("notifications").select("*").eq("user_id",userId).order("created_at",{ascending:false});
+      if (notifsData) setNotifications(notifsData);
+      const {data:blocksData} = await supabase.from("blocks").select("blocked_id").eq("blocker_id",userId);
+      if (blocksData) setBlockedIds(blocksData.map(b=>b.blocked_id));
+    }
+  };
+
+  useEffect(() => {
+    initSession();
     fetchAll();
   }, []);
 
-  //いいね
- const toggleLike = async id => {
+
+// ════════════════════════════════════════
+// 認証（ログイン・サインアップ・ログアウト・退会）
+// ════════════════════════════════════════
+
+  // ログイン：usersテーブル確認 → Supabase Auth認証
+  // authに存在しない旧ユーザーは自動でsignUpしてauth_idを紐付ける
+  const handleLogin = async () => {
+    setLoginError("");
+    if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
+    if (loginId===ADMIN_ID&&loginPw==="admin"){
+      setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
+      setTab("timeline");setScreen("main");return;
+    }
+    const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
+    if (error||!data){setLoginError("このIDは登録されていません");return;}
+    if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
+    const fakeEmail = `${loginId}@tecco.app`;
+    const {error:authError} = await supabase.auth.signInWithPassword({email:fakeEmail,password:loginPw});
+    if (authError) {
+      if (data.password === loginPw) {
+        // authに存在しない旧ユーザーを再登録
+        const {data:signUpData, error:signUpError} = await supabase.auth.signUp({email:fakeEmail,password:loginPw});
+        if (signUpError){setLoginError("ログインに失敗しました");return;}
+        await supabase.from("users").update({auth_id:signUpData.user.id}).eq("user_id",loginId);
+        setLoginAttempts(0);
+      } else {
+        setLoginError("パスワードが違います");
+        setLoginAttempts(p=>p+1);
+        return;
+      }
+    }
+    setLoginAttempts(0);
+    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
+    const savedPins = data.pinned_ids ? JSON.parse(data.pinned_ids) : [];
+    setPinnedIds(savedPins);
+    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
+    setTab("timeline");setScreen("main");
+  };
+
+  // サインアップ：重複チェック → auth登録 → usersテーブル登録
+  const handleSignup = async () => {
+    setSignupError("");
+    if (!signupName.trim()||!signupId.trim()||!signupPw.trim()){setSignupError("すべての項目を入力してください");return;}
+    if (signupId===ADMIN_ID){setSignupError("このIDは使用できません");return;}
+    if (signupPw.length<6){setSignupError("パスワードは6文字以上にしてください");return;}
+    const {data:existing} = await supabase.from("users").select("user_id").eq("user_id",signupId).single();
+    if (existing){setSignupError("このIDはすでに使われています");return;}
+    const fakeEmail = `${signupId}@tecco.app`;
+    const {data:authData, error:authError} = await supabase.auth.signUp({email:fakeEmail,password:signupPw});
+    if (authError){setSignupError("登録に失敗しました: " + authError.message);return;}
+    const {error} = await supabase.from("users").insert({
+      user_id:signupId, name:signupName, area:signupArea,
+      avatar:signupAvatar, bio:"", auth_id:authData.user.id
+    });
+    if (error){setSignupError("登録に失敗しました");return;}
+    setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
+    localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
+    // 新規登録時は公式アカウントを自動フォロー
+    await supabase.from("follows").insert({follower_id:signupId, following_id:OFFICIAL_ID});
+    setFollowing([OFFICIAL_ID]);
+    setTab("timeline");setScreen("main");
+  };
+
+  // ログアウト：stateをすべてリセット
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("tecco_user");
+    setProfile(null);setFollowing([]);
+    setLikedIds(new Set());setDislikedIds(new Set());
+    setTagSearch(null);setViewUser(null);setTab("timeline");
+    setLoginId("");setLoginPw("");setScreen("login");
+  };
+
+  // 退会：自分の投稿・コメント・フォロー・いいねをすべて削除してからログアウト
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("本当に退会しますか？\nこの操作は取り消せません。")) return;
+    await supabase.from("posts").delete().eq("user_id", profile.userId);
+    await supabase.from("comments").delete().eq("user_id", profile.userId);
+    await supabase.from("follows").delete().eq("follower_id", profile.userId);
+    await supabase.from("follows").delete().eq("following_id", profile.userId);
+    await supabase.from("likes").delete().eq("user_id", profile.userId);
+    await supabase.from("users").delete().eq("user_id", profile.userId);
+    await supabase.auth.signOut();
+    localStorage.removeItem("tecco_user");
+    setProfile(null);setFollowing([]);
+    setLikedIds(new Set());setDislikedIds(new Set());
+    setTab("timeline");setScreen("login");
+  };
+
+
+// ════════════════════════════════════════
+// 投稿・コメント
+// ════════════════════════════════════════
+
+  // いいね切り替え（同時に「よくないね」があれば解除する）
+  const toggleLike = async id => {
     const isLiked = likedIds.has(id);
     const post = posts.find(x=>x.id===id);
     if (!post) return;
@@ -672,20 +754,10 @@ const handleLogout = async () => {
         setPosts(p=>p.map(x=>x.id!==id?x:{...x,dislikes:post.dislikes-1}));
       }
     }
-    // 通知をリアルタイムで反映
-    const saved = localStorage.getItem("tecco_user");
-    if (saved) {
-      const {userId} = JSON.parse(saved);
-      const {data:notifsData} = await supabase.from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", {ascending:false});
-      if (notifsData) setNotifications(notifsData);
-    }
   };
 
-  //よくないね
-const toggleDislike = async id => {
+  // よくないね切り替え（同時に「いいね」があれば解除する）
+  const toggleDislike = async id => {
     const isDisliked = dislikedIds.has(id);
     const post = posts.find(x=>x.id===id);
     if (!post) return;
@@ -705,6 +777,7 @@ const toggleDislike = async id => {
     }
   };
 
+  // 新規投稿
   const submitPost = async () => {
     if (!draftText.trim()) return;
     const {data,error} = await supabase.from("posts").insert({
@@ -718,44 +791,48 @@ const toggleDislike = async id => {
     setPosts(p=>[{
       id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
       childAges:JSON.parse(data.child_ages||"[]"),
-      content:data.content, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
-      _ts:Date.now(),
-      likes:0, dislikes:0, scope:data.scope,
+      content:data.content, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+      _ts:Date.now(), likes:0, dislikes:0, scope:data.scope,
       tags:JSON.parse(data.tags||"[]"), comments:[],
     }, ...p]);
-
     setDraftText("");setDraftScope("all");setDraftTags([]);setDraftTag("");setComposing(false);
   };
 
+  // タグ追加（最大5個、# 記号は自動除去）
   const addTag = () => {
     const t=draftTag.trim().replace(/^#/,"");
     if (t&&!draftTags.includes(t)&&draftTags.length<5){setDraftTags(p=>[...p,t]);setDraftTag("");}
   };
- const deletePost = async id => {
+
+  // 投稿削除
+  const deletePost = async id => {
     await supabase.from("posts").delete().eq("id", id);
     setPosts(p=>p.filter(x=>x.id!==id));
   };
 
+  // マイページへの固定（最大3件）。DB の pinned_ids カラムに保存
   const togglePin = async (postId) => {
-  let newPins;
-  if (pinnedIds.includes(postId)) {
-    newPins = pinnedIds.filter(id=>id!==postId);
-  } else {
-    if (pinnedIds.length>=3) { alert("固定できるのは3つまでです"); return; }
-    newPins = [...pinnedIds, postId];
-  }
-  const {error} = await supabase.from("users").update({pinned_ids: JSON.stringify(newPins)}).eq("user_id", profile.userId);
-  if (error) { alert("エラー: " + error.message); return; }
-  setPinnedIds(newPins);
-};
+    let newPins;
+    if (pinnedIds.includes(postId)) {
+      newPins = pinnedIds.filter(id=>id!==postId);
+    } else {
+      if (pinnedIds.length>=3) { alert("固定できるのは3つまでです"); return; }
+      newPins = [...pinnedIds, postId];
+    }
+    const {error} = await supabase.from("users").update({pinned_ids:JSON.stringify(newPins)}).eq("user_id",profile.userId);
+    if (error) { alert("エラー: " + error.message); return; }
+    setPinnedIds(newPins);
+  };
 
-const deleteComment = async (postId,cid) => {
+  // コメント削除
+  const deleteComment = async (postId,cid) => {
     await supabase.from("comments").delete().eq("id", cid);
     setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
   };
 
+  // コメント投稿（投稿者本人に通知も送る）
   const submitComment = async postId => {
-     if (!commentText.trim()) return;
+    if (!commentText.trim()) return;
     const {data,error} = await supabase.from("comments").insert({
       post_id:postId, user:profile.name, user_id:profile.userId, avatar:profile.avatar, text:commentText,
     }).select().single();
@@ -769,77 +846,98 @@ const deleteComment = async (postId,cid) => {
       });
     }
     setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:[...x.comments,{
-      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
+      id:data.id, user:data.user, userId:data.user_id, avatar:data.avatar, text:data.text,
+      time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
     }]}));
     setCommentText("");
-    // 通知をリアルタイムで反映
-    const saved = localStorage.getItem("tecco_user");
-    if (saved) {
-      const {userId} = JSON.parse(saved);
-      const {data:notifsData} = await supabase.from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", {ascending:false});
-      if (notifsData) setNotifications(notifsData);
-    }
   };
 
-  //掲示板
+
+// ════════════════════════════════════════
+// 掲示板
+// ════════════════════════════════════════
+
+  // 掲示板へのコメント投稿（匿名・アカウント紐付けなし）
   const submitBoardComment = async boardId => {
     if (!boardCommentText.trim()) return;
     const {data,error} = await supabase.from("board_comments").insert({
       board_id:boardId, text:boardCommentText,
     }).select().single();
     if (error){
-      // board_commentsテーブルがない場合はローカルで追加
-      setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:Date.now(),text:boardCommentText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
+      // テーブルがない場合はローカルのみで追加
+      setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:Date.now(),text:boardCommentText,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]}));
       setBoardCommentText("");
       return;
     }
-    setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:data.id,text:data.text,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
+    setBoards(p=>p.map(b=>b.id!==boardId?b:{...b,comments:[...b.comments,{id:data.id,text:data.text,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]}));
     setBoardCommentText("");
   };
 
+  // 掲示板スレッド投稿（匿名）
   const submitBoard = async () => {
     if (!boardDraftText.trim()) return;
     const {data,error} = await supabase.from("boards").insert({
       category:boardDraftCat, content:boardDraftText,
     }).select().single();
     if (error){ return; }
-    setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),comments:[]}, ...p]);
+    setBoards(p=>[{id:data.id,category:data.category,content:data.content,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),comments:[]}, ...p]);
     setBoardDraftText("");setBoardComposing(false);
   };
-  //通報・凍結
+
+  // 掲示板スレッド削除（管理者のみ）
+  const deleteBoard = id => setBoards(p=>p.filter(b=>b.id!==id));
+
+
+// ════════════════════════════════════════
+// 通報・凍結
+// ════════════════════════════════════════
+
+  // 通報（ローカルのreports配列に追加。現状DBには保存しない）
   const handleReport = (postId,userName) => {
-    setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),checked:false}]);
+    setReports(p=>[...p,{id:Date.now(),postId,userName,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),checked:false}]);
     alert("通報しました。運営が確認します。");
   };
-const freezeUser = async uid => {
+
+  // アカウント凍結（管理者のみ）
+  const freezeUser = async uid => {
     await supabase.from("users").update({is_frozen:true}).eq("user_id",uid);
     setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
   };
+
+  // アカウント凍結解除（管理者のみ）
   const unfreezeUser = async uid => {
     await supabase.from("users").update({is_frozen:false}).eq("user_id",uid);
     setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
-  }; const submitFeedback = async () => {
+  };
+
+  // フィードバック送信
+  const submitFeedback = async () => {
     if (!feedbackText.trim()) return;
-    const { error } = await supabase.from("feedbacks")
-      .insert({ text: feedbackText, user_id: profile.userId });
+    const { error } = await supabase.from("feedbacks").insert({text:feedbackText,user_id:profile.userId});
     if (error) { return; }
     setFeedbacks(p=>[...p,{id:Date.now(),text:feedbackText,time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}]);
     setFeedbackText(""); setFeedbackSent(true);
     setTimeout(()=>setFeedbackSent(false),3000);
   };
 
-  //スポット
+
+// ════════════════════════════════════════
+// 遊び場スポット
+// ════════════════════════════════════════
+
+  // スポットへのクチコミ投稿（ローカルのみ。現状DBには保存しない）
   const submitSpotReview = spotId => {
     if (!spotReviewText.trim()) return;
-    setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}));
+    setSpots(p=>p.map(sp=>sp.id!==spotId?sp:{...sp,reviews:[...sp.reviews,{
+      id:Date.now(), user:profile.name, avatar:profile.avatar,
+      text:spotReviewText, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})
+    }]}));
     setSpotReviewText("");
   };
-  const deleteBoard = id => setBoards(p=>p.filter(b=>b.id!==id));
-  const [editingSpot,setEditingSpot] = useState(null); // 編集中のスポット
+
   const openEditSpot = sp => setEditingSpot({...sp});
+
+  // スポット保存（新規追加 or 既存編集）
   const saveSpot = async () => {
     if (!editingSpot.name.trim()) return;
     if (editingSpot.isNew) {
@@ -860,100 +958,103 @@ const freezeUser = async uid => {
     }
     setEditingSpot(null);
   };
- const deleteSpot = async id => {
+
+  // スポット削除（管理者のみ）
+  const deleteSpot = async id => {
     await supabase.from("spots").delete().eq("id", id);
     setSpots(p=>p.filter(sp=>sp.id!==id));
   };
 
-  //プロフィールを編集
-  const openEditProf = () => {setProfDraft({...profile,children:profile.children.map(c=>({...c}))});setEditProf(true);};
-const saveProf = async () => {
+
+// ════════════════════════════════════════
+// プロフィール・子ども情報
+// ════════════════════════════════════════
+
+  // プロフィール編集モーダルを開く（編集用の下書きをセット）
+  const openEditProf = () => {
+    setProfDraft({...profile,children:profile.children.map(c=>({...c}))});
+    setEditProf(true);
+  };
+
+  // プロフィール保存
+  const saveProf = async () => {
     const { error } = await supabase.from("users")
-      .update({
-        name: profDraft.name,
-        area: profDraft.area,
-        avatar: profDraft.avatar,
-        bio: profDraft.bio,
-      })
+      .update({name:profDraft.name, area:profDraft.area, avatar:profDraft.avatar, bio:profDraft.bio})
       .eq("user_id", profDraft.userId);
     if (error) { return; }
     setProfile(profDraft);
     localStorage.setItem("tecco_user", JSON.stringify(profDraft));
     setEditProf(false);
   };
-  const openAddChild = () => {setChildDraft({id:Date.now(),name:"",age:"0〜6ヶ月",gender:"女の子"});setChildMode("new");};
+
+  const openAddChild  = () => {setChildDraft({id:Date.now(),name:"",age:"0〜6ヶ月",gender:"女の子"});setChildMode("new");};
   const openEditChild = c => {setChildDraft({...c});setChildMode("edit");};
- const saveChild = async () => {
+
+  // 子ども情報保存（新規追加 or 既存編集）
+  const saveChild = async () => {
     if (!childDraft.name.trim()) return;
     const newChildren = childMode==="new"
       ? [...profile.children, childDraft]
       : profile.children.map(c=>c.id===childDraft.id?childDraft:c);
-    const { error } = await supabase.from("users")
-      .update({ children: JSON.stringify(newChildren) })
-      .eq("user_id", profile.userId);
+    const { error } = await supabase.from("users").update({children:JSON.stringify(newChildren)}).eq("user_id",profile.userId);
     if (error) { return; }
-    setProfile(p=>({...p, children:newChildren}));
-    localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
+    setProfile(p=>({...p,children:newChildren}));
+    localStorage.setItem("tecco_user", JSON.stringify({...profile,children:newChildren}));
     setChildMode(null);
   };
-const deleteChild = async () => {
+
+  // 子ども情報削除
+  const deleteChild = async () => {
     const newChildren = profile.children.filter(c=>c.id!==childDraft.id);
-    const { error } = await supabase.from("users")
-      .update({ children: JSON.stringify(newChildren) })
-      .eq("user_id", profile.userId);
+    const { error } = await supabase.from("users").update({children:JSON.stringify(newChildren)}).eq("user_id",profile.userId);
     if (error) { return; }
-    setProfile(p=>({...p, children:newChildren}));
-    localStorage.setItem("tecco_user", JSON.stringify({...profile, children:newChildren}));
+    setProfile(p=>({...p,children:newChildren}));
+    localStorage.setItem("tecco_user", JSON.stringify({...profile,children:newChildren}));
     setChildMode(null);
   };
-  
-const toggleFollow = async targetUserId => {          
-    if (following.includes(targetUserId)) {
-      await supabase.from("follows")
-        .delete()
-        .eq("follower_id", profile.userId)
-        .eq("following_id", targetUserId);            
-      setFollowing(p=>p.filter(id=>id!==targetUserId)); 
-    } else {
-      await supabase.from("follows")
-        .insert({follower_id:profile.userId, following_id:targetUserId}); 
-      await supabase.from("notifications").insert({
-        user_id: targetUserId,                        
-        type: "follow",
-        from_user: profile.name,
-        from_avatar: profile.avatar,
-        post_id: null,
-        message: `${profile.name}さんがあなたをフォローしました`,
-      });
-      setNewFollowers(prev=>prev.includes(targetUserId)?prev:[...prev,targetUserId]); 
-      setSeenNotif(false);
-      setFollowing(p=>[...p,targetUserId]);           
-    }
 
-    const saved = localStorage.getItem("tecco_user");
-    if (saved) {
-      const {userId: myUserId} = JSON.parse(saved);  
-      const {data:notifsData} = await supabase.from("notifications")
-        .select("*")
-        .eq("user_id", myUserId)                     
-        .order("created_at", {ascending:false});
-      if (notifsData) setNotifications(notifsData);
+
+// ════════════════════════════════════════
+// フォロー・ブロック
+// ════════════════════════════════════════
+
+  // フォロー・解除の切り替え（フォロー時は相手に通知を送る）
+  const toggleFollow = async targetUserId => {
+    if (following.includes(targetUserId)) {
+      await supabase.from("follows").delete().eq("follower_id",profile.userId).eq("following_id",targetUserId);
+      setFollowing(p=>p.filter(id=>id!==targetUserId));
+    } else {
+      await supabase.from("follows").insert({follower_id:profile.userId, following_id:targetUserId});
+      await supabase.from("notifications").insert({
+        user_id:targetUserId, type:"follow", from_user:profile.name,
+        from_avatar:profile.avatar, post_id:null,
+        message:`${profile.name}さんがあなたをフォローしました`,
+      });
+      setNewFollowers(prev=>prev.includes(targetUserId)?prev:[...prev,targetUserId]);
+      setSeenNotif(false);
+      setFollowing(p=>[...p,targetUserId]);
     }
   };
 
-const toggleBlock = async userId => {
+  // ブロック・解除の切り替え（ブロック時はフォローも解除する）
+  const toggleBlock = async userId => {
     if (blockedIds.includes(userId)) {
-      await supabase.from("blocks").delete().eq("blocker_id", profile.userId).eq("blocked_id", userId);
+      await supabase.from("blocks").delete().eq("blocker_id",profile.userId).eq("blocked_id",userId);
       setBlockedIds(p=>p.filter(id=>id!==userId));
     } else {
       await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
-      setBlockedIds(p=>[...p, userId]);
+      setBlockedIds(p=>[...p,userId]);
       if (following.includes(userId)) await toggleFollow(userId);
     }
   };
-  
 
- const pcp = post => ({
+
+// ════════════════════════════════════════
+// 表示用データ加工
+// ════════════════════════════════════════
+
+  // PostCard に渡す props をまとめるヘルパー
+  const pcp = post => ({
     post, liked:likedIds.has(post.id), disliked:dislikedIds.has(post.id),
     onLike:toggleLike, onDislike:toggleDislike,
     onUserClick:u=>setViewUser(u),
@@ -963,11 +1064,12 @@ const toggleBlock = async userId => {
     commentText, onCommentChange:setCommentText, onCommentSubmit:submitComment,
     onDelete:deletePost, onDeleteComment:deleteComment, onReport:handleReport,
     isAdmin, isMine:post.userId===profile?.userId,
-    profileUserId:profile?.userId,onPin:togglePin,
-isPinned:pinnedIds.includes(post.id),
+    profileUserId:profile?.userId, onPin:togglePin,
+    isPinned:pinnedIds.includes(post.id),
   });
 
-   const visiblePosts = posts.filter(p=>{
+  // 表示する投稿を絞り込む（凍結・ブロック・公開範囲・フィルター）
+  const visiblePosts = posts.filter(p=>{
     if (frozenIds.has(p.userId)&&!isAdmin) return false;
     if (blockedIds.includes(p.userId)) return false;
     if (p.scope==="wall"&&p.userId!==profile?.userId) return false;
@@ -981,10 +1083,15 @@ isPinned:pinnedIds.includes(post.id),
     }
     return true;
   });
-  const myPosts = posts.filter(p=>p.userId===profile?.userId);
+
+  const myPosts       = posts.filter(p=>p.userId===profile?.userId);
   const filteredBoards = boardCat==="すべて"?boards:boards.filter(b=>b.category===boardCat);
 
-  // ── ログイン画面 ──
+
+// ════════════════════════════════════════
+// 画面描画（ログイン・サインアップ）
+// ════════════════════════════════════════
+
   if (screen==="login") return (
     <div style={s.authRoot}>
       <div style={s.authInner}>
@@ -1005,12 +1112,12 @@ isPinned:pinnedIds.includes(post.id),
             onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
           {loginError && <div style={s.authError}>{loginError}</div>}
           {loginAttempts>=3 && (
-  <div style={{background:"#FFF8E6",border:"1px solid #FFE49A",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#7A5C00",marginBottom:10,lineHeight:1.6}}>
-    パスワードをお忘れですか？<br/>
-    以下のメールアドレスまでご連絡ください🍀<br/>
-    <strong>@gmail.com</strong>
-  </div>
-)}
+            <div style={{background:"#FFF8E6",border:"1px solid #FFE49A",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#7A5C00",marginBottom:10,lineHeight:1.6}}>
+              パスワードをお忘れですか？<br/>
+              以下のメールアドレスまでご連絡ください🍀<br/>
+              <strong>@gmail.com</strong>
+            </div>
+          )}
           <div style={{height:8}}/>
           <button style={s.authBtn} onClick={handleLogin}>ログインする</button>
           <button style={s.authBtnSub} onClick={()=>{setScreen("signup");setLoginError("");}}>新規登録</button>
@@ -1020,8 +1127,6 @@ isPinned:pinnedIds.includes(post.id),
     </div>
   );
 
-  //画面デザイン
-  // ── 新規登録画面 ──
   if (screen==="signup") return (
     <div style={s.authRoot}>
       <div style={s.authInner}>
@@ -1049,7 +1154,6 @@ isPinned:pinnedIds.includes(post.id),
           <div style={s.authLabel}>パスワード（6文字以上）</div>
           <input style={s.authInput} type="password" placeholder="6文字以上" value={signupPw} onChange={e=>{setSignupPw(e.target.value);setSignupError("");}}/>
           <div style={{height:4}}/>
-          {/* 利用規約チェック */}
           <div style={s.checkRow} onClick={()=>setAgreedTerms(v=>!v)}>
             <div style={agreedTerms?s.checkBoxOn:s.checkBox}>
               {agreedTerms && <span style={{color:"#fff",fontSize:12,lineHeight:1}}>✓</span>}
@@ -1059,7 +1163,6 @@ isPinned:pinnedIds.includes(post.id),
               に同意する
             </div>
           </div>
-          {/* PPチェック */}
           <div style={s.checkRow} onClick={()=>setAgreedPrivacy(v=>!v)}>
             <div style={agreedPrivacy?s.checkBoxOn:s.checkBox}>
               {agreedPrivacy && <span style={{color:"#fff",fontSize:12,lineHeight:1}}>✓</span>}
@@ -1149,7 +1252,12 @@ isPinned:pinnedIds.includes(post.id),
     </div>
   );
 
-  // ── フォロー中一覧 ──
+
+// ════════════════════════════════════════
+// 画面描画（サブ画面：フォロー一覧・他ユーザー・スポット詳細）
+// ════════════════════════════════════════
+
+  // フォロー中一覧
   if (showFollowing) return (
     <div style={s.root}>
       <header style={s.header}><div style={s.headerInner}>
@@ -1174,7 +1282,7 @@ isPinned:pinnedIds.includes(post.id),
     </div>
   );
 
-  // ── フォロワー一覧 ──
+  // フォロワー一覧
   if (showFollowers) return (
     <div style={s.root}>
       <header style={s.header}><div style={s.headerInner}>
@@ -1198,7 +1306,7 @@ isPinned:pinnedIds.includes(post.id),
     </div>
   );
 
-  // ── 他ユーザーページ ──
+  // 他ユーザーページ
   if (viewUser) {
     const isFrozen    = frozenIds.has(viewUser.userId);
     const isFollowing = following.includes(viewUser.userId);
@@ -1247,14 +1355,17 @@ isPinned:pinnedIds.includes(post.id),
       </div>
     );
   }
-  
 
-  // ── 遊び場詳細 ──
+  // 遊び場詳細
   if (viewSpot) {
     const spot = spots.find(s=>s.id===viewSpot);
+    if (!spot) { setViewSpot(null); return null; } // スポットが削除された場合の安全策
     const submitReview = () => {
       if (!spotReviewText.trim()) return;
-      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{id:Date.now(),user:profile.name,avatar:profile.avatar,text:spotReviewText,time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"})}]}:s));
+      setSpots(prev=>prev.map(s=>s.id===viewSpot?{...s,reviews:[...s.reviews,{
+        id:Date.now(), user:profile.name, avatar:profile.avatar,
+        text:spotReviewText, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})
+      }]}:s));
       setSpotReviewText("");
     };
     return (
@@ -1304,12 +1415,18 @@ isPinned:pinnedIds.includes(post.id),
     );
   }
 
-  // ── メイン ──
+
+// ════════════════════════════════════════
+// 画面描画（メイン画面）
+// ════════════════════════════════════════
+
   return (
     <div style={s.root}>
+
+      {/* ヘッダー */}
       <header style={s.header}>
         <div style={s.headerInner}>
-          {/* 左：ベルアイコン（通知） */}
+          {/* 左：通知ベル */}
           <button style={{background:"none",border:"none",cursor:"pointer",position:"relative",padding:4,display:"flex",alignItems:"center"}}
             onClick={()=>{setTab("notif");setSeenNotif(true);setTagSearch(null);}}>
             <span style={{fontSize:22}}>🔔</span>
@@ -1320,14 +1437,15 @@ isPinned:pinnedIds.includes(post.id),
             )}
           </button>
           <span style={s.headerTitle}>tecco</span>
-         <div style={s.headerRight}>
-  {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
-  <button style={{background:"none",border:"none",color:C.white,fontSize:20,cursor:"pointer",padding:4}}
-    onClick={()=>{setShowSearch(true);setSearchText("");}}>🔍</button>
-</div>
+          <div style={s.headerRight}>
+            {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
+            <button style={{background:"none",border:"none",color:C.white,fontSize:20,cursor:"pointer",padding:4}}
+              onClick={()=>{setShowSearch(true);setSearchText("");}}>🔍</button>
+          </div>
         </div>
       </header>
 
+      {/* タグ検索中バナー */}
       {tagSearch && (
         <div style={s.tagBanner}>
           <span>🔍 #{tagSearch} の投稿</span>
@@ -1335,13 +1453,14 @@ isPinned:pinnedIds.includes(post.id),
         </div>
       )}
 
+      {/* タブナビゲーション */}
       <nav style={s.tabNav}>
         {[
-          {key:"timeline", label:"HOME",    badge:timelineBadge},
-          {key:"area",     label:"地域",    badge:0},
-          {key:"age",      label:"月齢",    badge:0},
-          {key:"board",    label:"掲示板",  badge:boardBadge},
-          {key:"spots",    label:"遊び場",  badge:0},
+          {key:"timeline", label:"HOME",      badge:timelineBadge},
+          {key:"area",     label:"地域",      badge:0},
+          {key:"age",      label:"月齢",      badge:0},
+          {key:"board",    label:"掲示板",    badge:boardBadge},
+          {key:"spots",    label:"遊び場",    badge:0},
           {key:"mypage",   label:"マイページ", badge:0},
         ].map(t=>(
           <button key={t.key} onClick={()=>{
@@ -1359,17 +1478,18 @@ isPinned:pinnedIds.includes(post.id),
           </button>
         ))}
       </nav>
-     {tab==="timeline"&&!tagSearch&&(
+
+      {/* フィルターバー */}
+      {tab==="timeline"&&!tagSearch&&(
         <div style={s.filterBar}>
           <div style={{display:"flex",gap:8}}>
-            <button style={{...s.boardCatBtn, background:timelineFilter==="all"?C.coralPale:C.white, borderColor:timelineFilter==="all"?C.coral:C.border, color:timelineFilter==="all"?C.coral:C.textSub}}
+            <button style={{...s.boardCatBtn,background:timelineFilter==="all"?C.coralPale:C.white,borderColor:timelineFilter==="all"?C.coral:C.border,color:timelineFilter==="all"?C.coral:C.textSub}}
               onClick={()=>setTimelineFilter("all")}>🌍 全員</button>
-            <button style={{...s.boardCatBtn, background:timelineFilter==="following"?C.coralPale:C.white, borderColor:timelineFilter==="following"?C.coral:C.border, color:timelineFilter==="following"?C.coral:C.textSub}}
+            <button style={{...s.boardCatBtn,background:timelineFilter==="following"?C.coralPale:C.white,borderColor:timelineFilter==="following"?C.coral:C.border,color:timelineFilter==="following"?C.coral:C.textSub}}
               onClick={()=>setTimelineFilter("following")}>👥 フォロー中</button>
           </div>
         </div>
       )}
-
       {tab==="area"&&!tagSearch&&(
         <div style={s.filterBar}>
           <select style={s.select} value={filterArea} onChange={e=>setFilterArea(e.target.value)}>
@@ -1387,7 +1507,10 @@ isPinned:pinnedIds.includes(post.id),
         </div>
       )}
 
+      {/* メインコンテンツ */}
       <main style={s.main}>
+
+        {/* ── タイムライン・地域・月齢タブ ── */}
         {(tab==="timeline"||tab==="area"||tab==="age"||tagSearch) && (
           <>
             {visiblePosts.length===0 && <div style={s.emptyMsg}>投稿がありません</div>}
@@ -1395,41 +1518,38 @@ isPinned:pinnedIds.includes(post.id),
           </>
         )}
 
+        {/* ── 遊び場タブ ── */}
         {tab==="spots"&&!tagSearch && (
           <>
             <div style={{fontSize:13,color:C.textSub,marginBottom:8,lineHeight:1.6}}>
               🗺️ 岩手県内の支援センター・遊び場・勉強スペースの情報です。クチコミもぜひ書いてください！<br/>
               <span style={{fontSize:12,color:C.textMuted}}>📚 勉強スペースは中高生向けの自習・学習できる場所をまとめています。</span>
             </div>
-            {/* 管理者：新規スポット追加ボタン */}
             {isAdmin && (
               <button style={{...s.addChildBtn,marginBottom:12}}
                 onClick={()=>setEditingSpot({id:Date.now(),name:"",type:"支援センター",area:"県央",address:"",memo:"",mapUrl:"",reviews:[],isNew:true})}>
                 ＋ 遊び場・スポットを追加する
               </button>
             )}
-            {/* エリアフィルタ */}
             <div style={s.spotFilterBar}>
               {["すべて",...AREAS].map(a=>(
                 <button key={a} style={{...s.spotFilterBtn,background:spotArea===a?C.coral:C.white,borderColor:spotArea===a?C.coral:C.border,color:spotArea===a?C.white:C.textSub}}
                   onClick={()=>setSpotArea(a)}>{a}</button>
               ))}
             </div>
-            {/* 種別フィルタ */}
             <div style={s.spotFilterBar}>
               {SPOT_TYPES.map(t=>(
                 <button key={t} style={{...s.spotFilterBtn,background:spotType===t?C.purple:C.white,borderColor:spotType===t?C.purple:C.border,color:spotType===t?C.white:C.textSub}}
                   onClick={()=>setSpotType(t)}>{t}</button>
               ))}
             </div>
-            {/* スポットカード */}
             {spots
               .filter(sp=>(spotArea==="すべて"||sp.area===spotArea)&&(spotType==="すべて"||sp.type===spotType))
               .map(sp=>{
                 const isOpen = openSpotId===sp.id;
                 return (
                   <div key={sp.id}
-                    style={{...(isOpen?s.spotCardOpen:s.spotCard), cursor:"pointer"}}
+                    style={{...(isOpen?s.spotCardOpen:s.spotCard),cursor:"pointer"}}
                     onClick={()=>setOpenSpotId(isOpen?null:sp.id)}>
                     <div style={s.spotTop}>
                       <div style={s.spotName}>{sp.name}</div>
@@ -1484,23 +1604,23 @@ isPinned:pinnedIds.includes(post.id),
               <div style={s.emptyMsg}>この条件のスポットはまだありません</div>}
           </>
         )}
-     {tab==="notif" && (
+
+        {/* ── 通知タブ ── */}
+        {tab==="notif" && (
           <>
             <div style={s.secTitle}>🔔 通知</div>
-            {notifications.length===0 && (
-              <div style={s.emptyMsg}>まだ通知はありません</div>
-            )}
+            {notifications.length===0 && <div style={s.emptyMsg}>まだ通知はありません</div>}
             {notifications.map(n=>(
-  <div key={n.id} style={{...s.userListItem, background:C.white, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${C.border}`, cursor:"pointer"}}
-    onClick={()=>{
-      const user = allKnownUsers.find(u=>u.user===n.from_user);
-      if (user) setViewUser(user);
-    }}>
-              <div style={{fontSize:22, marginRight:8, flexShrink:0}}>
+              <div key={n.id} style={{...s.userListItem,background:C.white,borderRadius:12,padding:"12px 14px",marginBottom:8,border:`1px solid ${C.border}`,cursor:"pointer"}}
+                onClick={()=>{
+                  const user = allKnownUsers.find(u=>u.user===n.from_user);
+                  if (user) setViewUser(user);
+                }}>
+                <div style={{fontSize:22,marginRight:8,flexShrink:0}}>
                   {n.type==="like"?"❤️":n.type==="comment"?"💬":"👥"}
                 </div>
                 <div style={s.userListAvatar}>{n.from_avatar}</div>
-                <div style={{flex:1, marginLeft:8}}>
+                <div style={{flex:1,marginLeft:8}}>
                   <div style={{fontSize:13,color:C.text,fontWeight:600}}>{n.message}</div>
                   <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
                     {new Date(n.created_at).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"})}
@@ -1508,8 +1628,10 @@ isPinned:pinnedIds.includes(post.id),
                 </div>
               </div>
             ))}
-            </>
+          </>
         )}
+
+        {/* ── 掲示板タブ ── */}
         {tab==="board"&&!tagSearch && (
           <>
             <div style={s.boardNotice}>🔒 掲示板はアカウントと紐付かない匿名投稿です。</div>
@@ -1560,8 +1682,10 @@ isPinned:pinnedIds.includes(post.id),
           </>
         )}
 
+        {/* ── マイページタブ ── */}
         {tab==="mypage"&&!tagSearch && (
           <>
+            {/* プロフィールカード */}
             <div style={s.myCard}>
               <div style={s.myAvatarBox}>{profile.avatar}</div>
               <div style={{flex:1}}>
@@ -1572,11 +1696,15 @@ isPinned:pinnedIds.includes(post.id),
               </div>
               <button style={s.editProfBtn} onClick={openEditProf}>編集</button>
             </div>
+
+            {/* 投稿数・フォロー統計 */}
             <div style={s.stats}>
               <div style={s.statItem}><div style={s.statNum}>{myPosts.length}</div><div style={s.statLabel}>投稿</div></div>
               <div style={s.statItem} onClick={()=>setShowFollowers(true)}><div style={s.statNum}>{followerList.length}</div><div style={s.statLabel}>フォロワー</div></div>
               <div style={s.statItem} onClick={()=>setShowFollowing(true)}><div style={s.statNum}>{following.length}</div><div style={s.statLabel}>フォロー中</div></div>
             </div>
+
+            {/* 子ども情報 */}
             <div style={{...s.secTitle,marginTop:16}}>👶 子ども情報</div>
             {profile.children.map(c=>(
               <div key={c.id} style={s.childCard}>
@@ -1586,19 +1714,24 @@ isPinned:pinnedIds.includes(post.id),
               </div>
             ))}
             <button style={s.addChildBtn} onClick={openAddChild}>＋ 子どもを追加</button>
+
+            {/* 自分の投稿（固定投稿を先頭に） */}
             <div style={s.secTitle}>📝 自分の投稿</div>
-            {pinnedIds.length>0 && (
-  <>
-    <div style={{...s.secTitle, color:C.coral}}>📌 固定投稿</div>
-    {myPosts.filter(p=>pinnedIds.includes(p.id)).map(p=>(
-      <PostCard key={p.id} {...pcp(p)}/>
-    ))}
-    <div style={{...s.secTitle, marginTop:12}}>その他の投稿</div>
-  </>
-)}
-{myPosts.filter(p=>!pinnedIds.includes(p.id)).map(p=><PostCard key={p.id} {...pcp(p)}/>)}
             {myPosts.length===0 && <div style={s.emptyMsg}>まだ投稿がありません</div>}
-            {myPosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
+            {pinnedIds.length>0 && (
+              <>
+                <div style={{...s.secTitle,color:C.coral}}>📌 固定投稿</div>
+                {myPosts.filter(p=>pinnedIds.includes(p.id)).map(p=>(
+                  <PostCard key={p.id} {...pcp(p)}/>
+                ))}
+                <div style={{...s.secTitle,marginTop:12}}>その他の投稿</div>
+              </>
+            )}
+            {myPosts.filter(p=>!pinnedIds.includes(p.id)).map(p=>(
+              <PostCard key={p.id} {...pcp(p)}/>
+            ))}
+
+            {/* フィードバック */}
             <div style={{...s.secTitle,marginTop:20}}>💌 要望・フィードバック</div>
             <div style={s.reportSection}>
               <div style={s.reportTitle}>teccoへのご意見・改善要望</div>
@@ -1607,15 +1740,19 @@ isPinned:pinnedIds.includes(post.id),
               <button style={s.feedbackBtn} onClick={submitFeedback}>送信する</button>
               {feedbackSent && <div style={s.successMsg}>✅ 送信しました！ありがとうございます。</div>}
             </div>
+
+            {/* 寄付 */}
             <div style={{...s.secTitle,marginTop:8}}>💝 teccoを応援する</div>
             <div style={s.donateSection}>
               <div style={s.donateTitle}>teccoを応援する</div>
               <div style={s.donateDesc}>teccoは岩手のパパママのために<br/>個人で運営しています。<br/>ご支援いただけると嬉しいです🍀</div>
               <button style={s.donateBtn} onClick={()=>alert("準備中です。ありがとうございます！💝")}>💝 寄付する</button>
             </div>
+
+            {/* 管理者パネル */}
             {isAdmin && (
               <>
-              <div style={{...s.secTitle,marginTop:8}}>⚙️ 管理者パネル</div>
+                <div style={{...s.secTitle,marginTop:8}}>⚙️ 管理者パネル</div>
                 <div style={s.adminPanel}>
                   <div style={s.adminTitle}>ユーザー管理（{users.length}名登録）</div>
                   {users.map(u=>(
@@ -1637,7 +1774,7 @@ isPinned:pinnedIds.includes(post.id),
                 <div style={s.adminPanel}>
                   <div style={s.adminTitle}>通報一覧（{reports.length}件）</div>
                   {reports.length===0 && <div style={{fontSize:13,color:C.textMuted}}>通報はありません</div>}
-                 {reports.map(r=>{
+                  {reports.map(r=>{
                     const reportedPost = posts.find(p=>p.id===r.postId);
                     return (
                       <div key={r.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",opacity:r.checked?0.5:1}}>
@@ -1655,7 +1792,7 @@ isPinned:pinnedIds.includes(post.id),
                       </div>
                     );
                   })}
-               </div>
+                </div>
                 <div style={s.adminPanel}>
                   <div style={s.adminTitle}>フィードバック（{feedbacks.length}件）</div>
                   {feedbacks.length===0 && <div style={{fontSize:13,color:C.textMuted}}>フィードバックはありません</div>}
@@ -1663,12 +1800,11 @@ isPinned:pinnedIds.includes(post.id),
                     <div key={f.id} style={{fontSize:13,padding:"8px 0",borderBottom:"1px solid #FFF3C4",lineHeight:1.5,opacity:f.checked?0.5:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <input type="checkbox" checked={f.checked||false}
-                         onChange={async()=>{
-                              const newChecked = !f.checked;
-                              await supabase.from("feedbacks").update({is_checked:newChecked}).eq("id",f.id);
-                             setFeedbacks(p=>p.map(x=>x.id===f.id?{...x,checked:newChecked}:x));
-                             }}
-                             />
+                          onChange={async()=>{
+                            const newChecked = !f.checked;
+                            await supabase.from("feedbacks").update({is_checked:newChecked}).eq("id",f.id);
+                            setFeedbacks(p=>p.map(x=>x.id===f.id?{...x,checked:newChecked}:x));
+                          }}/>
                         <span>💌 {f.text}</span>
                         {f.checked && <span style={{fontSize:11,color:C.green,fontWeight:700}}>確認済み</span>}
                       </div>
@@ -1678,90 +1814,101 @@ isPinned:pinnedIds.includes(post.id),
                 </div>
               </>
             )}
-            {/* パスワード変更 */}
-<div style={{...s.reportSection, marginTop:8}}>
-  <div style={{...s.reportTitle, marginBottom:0, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-    🔑 パスワードを変更する
-    <button style={{background:"none", border:"none", fontSize:13, color:C.coral, fontWeight:700, cursor:"pointer"}}
-      onClick={()=>{setShowChangePw(v=>!v); setPwError(""); setPwSuccess(false);}}>
-      {showChangePw ? "閉じる" : "変更する"}
-    </button>
-  </div>
-  {showChangePw && (
-    <div style={{marginTop:14}}>
-      <div style={s.formLabel}>新しいパスワード（6文字以上）</div>
-      <input style={{...s.formInput, marginBottom:10}} type="password"
-        placeholder="新しいパスワード"
-        value={newPw} onChange={e=>{setNewPw(e.target.value); setPwError("");}}/>
-      <div style={s.formLabel}>確認用（もう一度）</div>
-      <input style={{...s.formInput, marginBottom:10}} type="password"
-        placeholder="もう一度入力"
-        value={newPwConfirm} onChange={e=>{setNewPwConfirm(e.target.value); setPwError("");}}/>
-      {pwError && <div style={s.authError}>{pwError}</div>}
-      {pwSuccess && <div style={s.successMsg}>✅ パスワードを変更しました！</div>}
-      <button style={{...s.feedbackBtn, marginTop:4}} onClick={async () => {
-        setPwError(""); setPwSuccess(false);
-        if (newPw.length < 6) { setPwError("6文字以上で入力してください"); return; }
-        if (newPw !== newPwConfirm) { setPwError("パスワードが一致しません"); return; }
-        const { error } = await supabase.auth.updateUser({ password: newPw });
-        if (error) { setPwError("変更に失敗しました。再ログインして試してください"); return; }
-        setPwSuccess(true);
-        setNewPw(""); setNewPwConfirm("");
-        setTimeout(() => { setPwSuccess(false); setShowChangePw(false); }, 2000);
-      }}>変更する</button>
-    </div>
-  )}
-</div>
 
+            {/* パスワード変更 */}
+            <div style={{...s.reportSection,marginTop:8}}>
+              <div style={{...s.reportTitle,marginBottom:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                🔑 パスワードを変更する
+                <button style={{background:"none",border:"none",fontSize:13,color:C.coral,fontWeight:700,cursor:"pointer"}}
+                  onClick={()=>{setShowChangePw(v=>!v);setPwError("");setPwSuccess(false);}}>
+                  {showChangePw?"閉じる":"変更する"}
+                </button>
+              </div>
+              {showChangePw && (
+                <div style={{marginTop:14}}>
+                  <div style={s.formLabel}>新しいパスワード（6文字以上）</div>
+                  <input style={{...s.formInput,marginBottom:10}} type="password"
+                    placeholder="新しいパスワード"
+                    value={newPw} onChange={e=>{setNewPw(e.target.value);setPwError("");}}/>
+                  <div style={s.formLabel}>確認用（もう一度）</div>
+                  <input style={{...s.formInput,marginBottom:10}} type="password"
+                    placeholder="もう一度入力"
+                    value={newPwConfirm} onChange={e=>{setNewPwConfirm(e.target.value);setPwError("");}}/>
+                  {pwError && <div style={s.authError}>{pwError}</div>}
+                  {pwSuccess && <div style={s.successMsg}>✅ パスワードを変更しました！</div>}
+                  <button style={{...s.feedbackBtn,marginTop:4}} onClick={async () => {
+                    setPwError("");setPwSuccess(false);
+                    if (newPw.length<6){setPwError("6文字以上で入力してください");return;}
+                    if (newPw!==newPwConfirm){setPwError("パスワードが一致しません");return;}
+                    const {error} = await supabase.auth.updateUser({password:newPw});
+                    if (error){setPwError("変更に失敗しました。再ログインして試してください");return;}
+                    setPwSuccess(true);
+                    setNewPw("");setNewPwConfirm("");
+                    setTimeout(()=>{setPwSuccess(false);setShowChangePw(false);},2000);
+                  }}>変更する</button>
+                </div>
+              )}
+            </div>
+
+            {/* ログアウト・退会 */}
             <button style={s.logoutBtn} onClick={handleLogout}>ログアウトする</button>
             <div style={{height:8}}/>
-            <button style={{...s.logoutBtn, color:C.red, borderColor:`${C.red}66`, marginTop:8}}
-  onClick={handleDeleteAccount}>
-  退会する
-</button>
+            <button style={{...s.logoutBtn,color:C.red,borderColor:`${C.red}66`,marginTop:8}}
+              onClick={handleDeleteAccount}>
+              退会する
+            </button>
           </>
-          
         )}
       </main>
 
-      {tab!=="spots" && <button style={s.fab} onClick={()=>tab==="board"?setBoardComposing(true):setComposing(true)}>＋ 投稿する</button>}
-{showSearch && (
-  <Overlay onClose={()=>setShowSearch(false)}>
-    <div style={s.modalHeader}>
-      <button style={s.closeBtn} onClick={()=>setShowSearch(false)}>✕</button>
-      <span style={s.modalTitle}>ユーザーを検索</span>
-      <div style={{width:40}}/>
-    </div>
-    <div style={{padding:"12px 16px"}}>
-      <input style={{...s.formInput, marginBottom:12}} autoFocus
-        placeholder="名前またはIDで検索"
-        value={searchText} onChange={e=>setSearchText(e.target.value)}/>
-      {allKnownUsers
-        .filter(u=>
-          u.userId!==profile?.userId &&
-          searchText.trim()!=="" &&
-          (u.user.includes(searchText) || u.userId.includes(searchText))
-        )
-        .map(u=>(
-          <div key={u.userId} style={{...s.userListItem, cursor:"pointer"}}
-            onClick={()=>{setShowSearch(false);setViewUser(u);}}>
-            <div style={s.userListAvatar}>{u.avatar}</div>
-            <div style={{flex:1}}>
-              <div style={s.userListName}>{u.user}</div>
-              <div style={s.userListId}>@{u.userId}</div>
-            </div>
-          </div>
-        ))}
-      {searchText.trim()!=="" && allKnownUsers.filter(u=>
-        u.userId!==profile?.userId &&
-        (u.user.includes(searchText) || u.userId.includes(searchText))
-      ).length===0 && (
-        <div style={s.emptyMsg}>見つかりませんでした</div>
+      {/* 投稿ボタン（遊び場タブ以外に表示） */}
+      {tab!=="spots" && (
+        <button style={s.fab} onClick={()=>tab==="board"?setBoardComposing(true):setComposing(true)}>
+          ＋ 投稿する
+        </button>
       )}
-    </div>
-  </Overlay>
-)}
 
+      {/* ── モーダル群 ── */}
+
+      {/* ユーザー検索 */}
+      {showSearch && (
+        <Overlay onClose={()=>setShowSearch(false)}>
+          <div style={s.modalHeader}>
+            <button style={s.closeBtn} onClick={()=>setShowSearch(false)}>✕</button>
+            <span style={s.modalTitle}>ユーザーを検索</span>
+            <div style={{width:40}}/>
+          </div>
+          <div style={{padding:"12px 16px"}}>
+            <input style={{...s.formInput,marginBottom:12}} autoFocus
+              placeholder="名前またはIDで検索"
+              value={searchText} onChange={e=>setSearchText(e.target.value)}/>
+            {allKnownUsers
+              .filter(u=>
+                u.userId!==profile?.userId &&
+                searchText.trim()!=="" &&
+                (u.user.includes(searchText)||u.userId.includes(searchText))
+              )
+              .map(u=>(
+                <div key={u.userId} style={{...s.userListItem,cursor:"pointer"}}
+                  onClick={()=>{setShowSearch(false);setViewUser(u);}}>
+                  <div style={s.userListAvatar}>{u.avatar}</div>
+                  <div style={{flex:1}}>
+                    <div style={s.userListName}>{u.user}</div>
+                    <div style={s.userListId}>@{u.userId}</div>
+                  </div>
+                </div>
+              ))}
+            {searchText.trim()!=="" && allKnownUsers.filter(u=>
+              u.userId!==profile?.userId &&
+              (u.user.includes(searchText)||u.userId.includes(searchText))
+            ).length===0 && (
+              <div style={s.emptyMsg}>見つかりませんでした</div>
+            )}
+          </div>
+        </Overlay>
+      )}
+
+      {/* 投稿フォーム */}
       {composing && (
         <Overlay onClose={()=>setComposing(false)}>
           <div style={s.modalHeader}>
@@ -1809,6 +1956,7 @@ isPinned:pinnedIds.includes(post.id),
         </Overlay>
       )}
 
+      {/* 掲示板投稿フォーム */}
       {boardComposing && (
         <Overlay onClose={()=>setBoardComposing(false)}>
           <div style={s.modalHeader}>
@@ -1834,6 +1982,7 @@ isPinned:pinnedIds.includes(post.id),
         </Overlay>
       )}
 
+      {/* プロフィール編集 */}
       {editProf&&profDraft && (
         <Overlay onClose={()=>setEditProf(false)} scrollable>
           <div style={s.modalHeader}>
@@ -1869,6 +2018,7 @@ isPinned:pinnedIds.includes(post.id),
         </Overlay>
       )}
 
+      {/* 子ども情報編集 */}
       {childMode&&childDraft && (
         <Overlay onClose={()=>setChildMode(null)}>
           <div style={s.modalHeader}>
@@ -1948,6 +2098,7 @@ isPinned:pinnedIds.includes(post.id),
           <div style={{height:20}}/>
         </Overlay>
       )}
+
     </div>
   );
 }
