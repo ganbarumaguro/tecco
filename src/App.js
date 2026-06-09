@@ -311,6 +311,10 @@ function PostCard({post,liked,disliked,onLike,onDislike,onUserClick,onTagClick,i
         </div>
       </div>
       <p style={s.content}>{post.content}</p>
+      {post.imageUrl && (
+      <img src={post.imageUrl} alt="投稿画像"
+      style={{width:"100%",borderRadius:10,maxHeight:300,objectFit:"cover",marginBottom:10}}/>
+       )}
       {post.tags.length>0 && (
         <div style={s.tagRow}>
           {post.tags.map(t=><button key={t} style={s.tagBtn} onClick={()=>onTagClick(t)}>#{t}</button>)}
@@ -421,6 +425,7 @@ function App() {
   const [draftTag,setDraftTag]       = useState("");
   const [draftTags,setDraftTags]     = useState([]);
   const [commentText,setCommentText] = useState("");
+  const [draftImage, setDraftImage] = useState(null);
 
   // ── 掲示板フォーム ──
   const [boardComposing,setBoardComposing]   = useState(false);
@@ -548,6 +553,7 @@ function App() {
         likes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="like").length : 0,
         dislikes: likesCount ? likesCount.filter(l=>l.post_id===p.id&&l.type==="dislike").length : 0,
         scope:p.scope||"all", tags:JSON.parse(p.tags||"[]"), comments:[],
+        imageUrl:p.image_url||null,
       })));
     }
     // 投稿へのコメント
@@ -779,24 +785,39 @@ function App() {
 
   // 新規投稿
   const submitPost = async () => {
-    if (!draftText.trim()) return;
-    const {data,error} = await supabase.from("posts").insert({
-      user:profile.name, user_id:profile.userId, area:profile.area, avatar:profile.avatar,
-      content:draftText, scope:draftScope,
-      tags:JSON.stringify(draftTags),
-      child_ages:JSON.stringify(profile.children.map(c=>c.age)),
-      likes:0, dislikes:0,
-    }).select().single();
-    if (error){ return; }
-    setPosts(p=>[{
-      id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
-      childAges:JSON.parse(data.child_ages||"[]"),
-      content:data.content, time:new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"}),
-      _ts:Date.now(), likes:0, dislikes:0, scope:data.scope,
-      tags:JSON.parse(data.tags||"[]"), comments:[],
-    }, ...p]);
-    setDraftText("");setDraftScope("all");setDraftTags([]);setDraftTag("");setComposing(false);
-  };
+  if (!draftText.trim()) return;
+  let imageUrl = null;
+  if (draftImage) {
+    const ext = draftImage.name.split(".").pop();
+    const fileName = `${profile.userId}_${Date.now()}.${ext}`;
+    const {error:uploadError} = await supabase.storage
+      .from("post-images")
+      .upload(fileName, draftImage);
+    if (uploadError) { alert("画像のアップロードに失敗しました"); return; }
+    const {data:urlData} = supabase.storage.from("post-images").getPublicUrl(fileName);
+    imageUrl = urlData.publicUrl;
+  }
+  const {data,error} = await supabase.from("posts").insert({
+    user:profile.name, user_id:profile.userId, area:profile.area, avatar:profile.avatar,
+    content:draftText, scope:draftScope,
+    tags:JSON.stringify(draftTags),
+    child_ages:JSON.stringify(profile.children.map(c=>c.age)),
+    likes:0, dislikes:0,
+    image_url: imageUrl,
+  }).select().single();
+  if (error){ return; }
+  setPosts(p=>[{
+    id:data.id, user:data.user, userId:data.user_id, area:data.area, avatar:data.avatar,
+    childAges:JSON.parse(data.child_ages||"[]"),
+    content:data.content, time:new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}),
+    _ts:Date.now(),
+    likes:0, dislikes:0, scope:data.scope,
+    tags:JSON.parse(data.tags||"[]"), comments:[],
+    imageUrl:data.image_url,
+  }, ...p]);
+  setDraftText("");setDraftScope("all");setDraftTags([]);setDraftTag("");
+  setDraftImage(null);setComposing(false);
+};
 
   // タグ追加（最大5個、# 記号は自動除去）
   const addTag = () => {
@@ -1197,7 +1218,7 @@ function App() {
                 ["第1条　総則・目的","本利用規約（以下「本規約」）は、tecco（以下「本サービス」）の利用条件を定めるものです。ユーザーの皆さまには、本規約に同意のうえ本サービスをご利用いただきます。本サービスは、岩手県在住・出身の子育て世代が地域のつながりを育むことを目的としたコミュニティプラットフォームです。"],
                 ["第2条　利用登録","本サービスへの登録は、本規約に同意した方に限ります。虚偽の情報を登録した場合、アカウントを停止することがあります。"],
                 ["第3条　禁止事項","以下の行為を禁止します。①他のユーザーへの誹謗中傷・ハラスメント行為　②個人情報（住所・電話番号・氏名等）の掲載　③商業目的の宣伝・勧誘（運営が許可した場合を除く）　④虚偽情報・デマの流布　⑤政治・宗教活動を目的とした投稿　⑥著作権・肖像権等の侵害　⑦なりすまし行為　⑧その他運営が不適切と判断した行為"],
-                ["第4条　投稿コンテンツ","投稿の著作権は投稿者本人に帰属します。投稿することで、本サービス内での表示・共有に必要な範囲での利用を許諾したものとみなします。運営は、禁止事項に違反する投稿を予告なく削除できるものとします。"],
+                ["第4条　投稿コンテンツ","投稿の著作権は投稿者本人に帰属します。投稿することで、本サービス内での表示・共有に必要な範囲での利用を許諾したものとみなします。運営は、禁止事項に違反する投稿を予告なく削除できるものとします。画像の投稿は１投稿につき１枚まで可能です。個人情報保護のため投稿者本人やその家族などすべての人物が含まれた画像の投稿は禁止します。また、氏名・自宅外観など個人が特定できる情報が映り込んだ画像の投稿も禁止します。著作権を侵害する画像の投稿も同様に禁止します。"],
                 ["第5条　免責事項","本サービスはユーザー間のコミュニケーションを媒介するものであり、ユーザー間のトラブルに対して運営は責任を負いません。システム障害・メンテナンス等によるサービス停止について、運営は責任を負いません。投稿内容の正確性・信頼性について、運営は保証しません。"],
                 ["第6条　アカウントの停止・パスワードリセット","本規約に違反した場合、予告なくアカウントを停止・削除することがあります。アカウントの削除はマイページ下部の「退会する」ボタンから行えます。退会すると投稿・コメント・フォロー情報などすべてのデータが削除され、復元できません。パスワードを忘れた場合は、tecco運営アカウント（@admin）へのコメントまたはフィードバック欄よりご連絡ください。本人確認の上、パスワードのリセット対応をいたします。"],
                 ["第7条　規約の変更","運営は、必要に応じて本規約を変更できるものとします。変更後の規約は、本サービス上での告知をもって効力を生じます。"],
@@ -1910,7 +1931,7 @@ function App() {
 
       {/* 投稿フォーム */}
       {composing && (
-        <Overlay onClose={()=>setComposing(false)}>
+        <Overlay onClose={()=>setComposing(false)} scrollable>
           <div style={s.modalHeader}>
             <button style={s.closeBtn} onClick={()=>setComposing(false)}>✕</button>
             <span style={s.modalTitle}>つぶやく</span>
@@ -1951,6 +1972,21 @@ function App() {
                 </span>
               ))}
             </div>
+          </div>
+          <div style={s.divider}/>
+         <div style={s.sectionPad}>
+            <div style={s.subLabel}>🖼️ 画像を添付する（1枚のみ/人物は載せないでください）</div>
+            <input type="file" accept="image/*"
+            onChange={e=>setDraftImage(e.target.files[0]||null)}
+            style={{fontSize:13,color:C.text}}/>
+            {draftImage && (
+            <div style={{marginTop:8}}>
+            <img src={URL.createObjectURL(draftImage)} alt="preview"
+            style={{width:"100%",borderRadius:10,maxHeight:200,objectFit:"cover"}}/>
+            <button style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",marginTop:4}}
+             onClick={()=>setDraftImage(null)}>✕ 画像を削除</button>
+          </div>
+          )}
           </div>
           <div style={s.charCount}>{draftText.length} / 280</div>
         </Overlay>
