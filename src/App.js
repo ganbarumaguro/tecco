@@ -119,7 +119,7 @@ const s = {
   ageTag:{fontSize:11,color:C.coral,background:C.coralPale,borderRadius:6,padding:"1px 7px"},
   timeText:{fontSize:11,color:C.textMuted},
   scopeBadge:{fontSize:10,borderRadius:6,padding:"2px 7px",fontWeight:600,whiteSpace:"nowrap"},
-  content:{fontSize:14,color:C.text,lineHeight:1.7,margin:"0 0 10px"},
+  content:{fontSize:14,color:C.text,lineHeight:1.7,margin:"0 0 10px",whiteSpace:"pre-wrap"},
   tagRow:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10},
   tagBtn:{background:"none",border:"none",fontSize:12,color:C.purple,fontWeight:700,cursor:"pointer",padding:0},
   actions:{display:"flex",gap:2,alignItems:"center",borderTop:`1px solid ${C.border}`,paddingTop:8,marginTop:2},
@@ -177,7 +177,7 @@ const s = {
   boardTop:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8},
   boardBadge:{fontSize:12,fontWeight:700,background:C.purplePale,color:C.purple,borderRadius:8,padding:"3px 10px",cursor:"pointer"},
   boardTime:{fontSize:11,color:C.textMuted},
-  boardContent:{fontSize:14,color:C.text,lineHeight:1.65,margin:"0 0 8px"},
+  boardContent:{fontSize:14,color:C.text,lineHeight:1.65,margin:"0 0 8px",whiteSpace:"pre-wrap"},
   boardReplyBtn:{background:"none",border:"none",fontSize:12,color:C.purple,fontWeight:600,cursor:"pointer",padding:0},
   // ── マイページ ──
   myCard:{background:C.white,borderRadius:16,padding:"18px",display:"flex",gap:14,alignItems:"flex-start",marginBottom:16,border:`1px solid ${C.border}`},
