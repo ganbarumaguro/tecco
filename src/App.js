@@ -439,6 +439,9 @@ function App() {
   const [childMode,setChildMode] = useState(null);   // null / "new" / "edit"
   const [childDraft,setChildDraft] = useState(null);
 
+  // ──　シェア機能　──
+  const [showShare, setShowShare] = useState(false);
+
   // ── 遊び場 ──
   const [spotArea,setSpotArea]           = useState("すべて");
   const [spotType,setSpotType]           = useState("すべて");
@@ -1462,9 +1465,44 @@ function App() {
             {isAdmin && <span style={s.adminBadge}>⚙️ 管理者</span>}
             <button style={{background:"none",border:"none",color:C.white,fontSize:20,cursor:"pointer",padding:4}}
               onClick={()=>{setShowSearch(true);setSearchText("");}}>🔍</button>
+            <button style={{background:"none",border:"none",color:C.white,fontSize:20,cursor:"pointer",padding:4}}
+              onClick={()=>setShowShare(true)}>📢</button>
           </div>
         </div>
       </header>
+      岩手のパパママSNS「tecco」を始めました！一緒にやってみませんか？私のアカウントはこちら＠
+      {/*シェアボタン*/}
+     {showShare && (
+     <Overlay onClose={()=>setShowShare(false)}>
+      <div style={s.modalHeader}>
+      <button style={s.closeBtn} onClick={()=>setShowShare(false)}>✕</button>
+      <span style={s.modalTitle}>teccoをだれかに教える</span>
+      <div style={{width:40}}/>
+    </div>
+    <div style={{padding:"16px"}}>
+      <div style={{fontSize:13,color:C.textSub,marginBottom:16,textAlign:"center"}}>
+        ほかの人にもteccoを教えよう！📢
+      </div>
+      {[
+        {label:"𝕏（Twitter）", color:"#000000", emoji:"🐦", url:`https://twitter.com/intent/tweet?text=岩手のパパママSNS「tecco」を始めました！一緒にやってみませんか？私のアカウントはこちら＠&url=https://tecco.vercel.app`},
+        {label:"LINE", color:"#06C755", emoji:"💬", url:`https://line.me/R/msg/text/?岩手のパパママSNS「tecco」を一緒にやってみませんか？私のアカウントはこちら＠%0Ahttps://tecco.vercel.app`},
+        {label:"note", color:"#41C9B4", emoji:"📝", url:`https://note.com/intent/post?hashtags=tecco&url=https://tecco.vercel.app`},
+        {label:"Instagram", color:"#E1306C", emoji:"📸", url:`https://www.instagram.com/`},
+      ].map(item=>(
+        <a key={item.label} href={item.url} target="_blank" rel="noreferrer"
+          style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",marginBottom:8,borderRadius:12,background:item.color,color:"#fff",textDecoration:"none",fontWeight:700,fontSize:14}}>
+          <span style={{fontSize:20}}>{item.emoji}</span>
+          {item.label}でシェア
+        </a>
+      ))}
+      <button style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",width:"100%",borderRadius:12,background:C.beige,border:`1px solid ${C.border}`,fontWeight:700,fontSize:14,cursor:"pointer",color:C.text,marginBottom:8}}
+        onClick={()=>{navigator.clipboard.writeText("岩手のパパママSNS「tecco」を始めました！一緒にやってみませんか？私のアカウントはこちら＠https://tecco.vercel.app");alert("URLをコピーしました！");}}>
+        <span style={{fontSize:20}}>🔗</span>
+        URLをコピー
+      </button>
+      </div>
+      </Overlay>
+      )}
 
       {/* タグ検索中バナー */}
       {tagSearch && (
