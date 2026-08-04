@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
 
@@ -477,6 +477,10 @@ function App() {
   const [pwError,setPwError]           = useState("");
   const [pwSuccess,setPwSuccess]       = useState(false);
 
+  // ── 広告関連 ──
+  const [ads, setAds] = useState([]);
+  const [editingAd, setEditingAd] = useState(null);
+
   // ── 派生値 ──
   const isAdmin = profile?.userId === ADMIN_ID;
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
@@ -503,7 +507,7 @@ function App() {
   }, 0);
 
   // 通知バッジ：通知タブを開くまでの未読通知数
-  const notifBadge = seenNotif ? 0 : notifications.length;
+  const notifBadge = notifications.filter(n=>!n.is_read).length;
 
 
 // ════════════════════════════════════════
@@ -635,6 +639,10 @@ function App() {
       const {data:blocksData} = await supabase.from("blocks").select("blocked_id").eq("blocker_id",userId);
       if (blocksData) setBlockedIds(blocksData.map(b=>b.blocked_id));
     }
+    //広告
+    const {data:adsData} = await supabase.from("ads").select("*").eq("is_active", true);
+      if (adsData) setAds(adsData);
+  
   };
 
   useEffect(() => {
@@ -712,6 +720,7 @@ function App() {
     localStorage.removeItem("tecco_user");
     setProfile(null);setFollowing([]);
     setLikedIds(new Set());setDislikedIds(new Set());
+    setNotifications([]);setSeenNotif(false);
     setTagSearch(null);setViewUser(null);setTab("timeline");
     setLoginId("");setLoginPw("");setScreen("login");
   };
@@ -988,6 +997,19 @@ function App() {
     await supabase.from("spots").delete().eq("id", id);
     setSpots(p=>p.filter(sp=>sp.id!==id));
   };
+
+  // 　広告編集
+  const saveAd = async () => {
+  if (!editingAd.title.trim()) return;
+  const {data, error} = await supabase.from("ads").insert({
+    title: editingAd.title, content: editingAd.content,
+    image_url: editingAd.image_url, link_url: editingAd.link_url,
+    is_active: true,
+  }).select().single();
+  if (error) { return; }
+  setAds(p=>[...p, data]);
+  setEditingAd(null);
+};
 
 
 // ════════════════════════════════════════
@@ -1452,7 +1474,13 @@ function App() {
         <div style={s.headerInner}>
           {/* 左：通知ベル */}
           <button style={{background:"none",border:"none",cursor:"pointer",position:"relative",padding:4,display:"flex",alignItems:"center"}}
-            onClick={()=>{setTab("notif");setSeenNotif(true);setTagSearch(null);}}>
+           onClick={async()=>{
+           setTab("notif");setSeenNotif(true);setTagSearch(null);
+           const unread = notifications.filter(n=>!n.is_read).map(n=>n.id);
+           if (unread.length>0) {
+           await supabase.from("notifications").update({is_read:true}).in("id", unread);
+           setNotifications(p=>p.map(n=>({...n,is_read:true}))); }
+           }}>
             <span style={{fontSize:22}}>🔔</span>
             {notifBadge>0 && (
               <span style={{position:"absolute",top:0,right:0,background:C.red,color:"#fff",fontSize:9,fontWeight:800,borderRadius:10,minWidth:15,height:15,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",lineHeight:1}}>
@@ -1470,7 +1498,6 @@ function App() {
           </div>
         </div>
       </header>
-      岩手のパパママSNS「tecco」を始めました！一緒にやってみませんか？私のアカウントはこちら＠
       {/*シェアボタン*/}
      {showShare && (
      <Overlay onClose={()=>setShowShare(false)}>
@@ -1573,7 +1600,29 @@ function App() {
         {(tab==="timeline"||tab==="area"||tab==="age"||tagSearch) && (
           <>
             {visiblePosts.length===0 && <div style={s.emptyMsg}>投稿がありません</div>}
-            {visiblePosts.map(p=><PostCard key={p.id} {...pcp(p)}/>)}
+            {visiblePosts.map((p, i)=>(
+            <React.Fragment key={p.id}>
+            <PostCard {...pcp(p)}/>
+            {ads.length>0 && (i+1)%15===0 && (()=>{
+            const ad = ads[(Math.floor(i/5)) % ads.length];
+            return (
+            <div style={{background:"#FFF8E6",borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid #FFE49A`}}>
+            <div style={{fontSize:10,color:"#B5A800",fontWeight:700,marginBottom:6}}>PR</div>
+            {ad.image_url && <img src={ad.image_url} alt="広告" style={{width:"100%",borderRadius:10,maxHeight:200,objectFit:"cover",marginBottom:8}}/>}
+            <div style={{fontWeight:800,fontSize:14,color:C.text,marginBottom:4}}>{ad.title}</div>
+            <div style={{fontSize:13,color:C.textSub,lineHeight:1.6,marginBottom:8,whiteSpace:"pre-wrap"}}>{ad.content}</div>
+            {ad.link_url && (
+            <a href={ad.link_url} target="_blank" rel="noreferrer"
+              style={{display:"inline-block",padding:"8px 20px",background:C.coral,color:C.white,borderRadius:20,fontSize:13,fontWeight:700,textDecoration:"none"}}>
+              詳しく見る
+            </a>
+          )}
+        </div>
+      );
+    })()}
+  </React.Fragment>
+))}
+            
           </>
         )}
 
@@ -1868,6 +1917,24 @@ function App() {
                         {f.checked && <span style={{fontSize:11,color:C.green,fontWeight:700}}>確認済み</span>}
                       </div>
                       <div style={{fontSize:11,color:C.textMuted,marginTop:2,marginLeft:24}}>{f.time}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={s.adminPanel}>
+                  <div style={s.adminTitle}>📢 広告管理</div>
+                  <button style={{...s.addChildBtn,marginBottom:12}}
+                    onClick={()=>setEditingAd({title:"",content:"",image_url:"",link_url:"",is_active:true,isNew:true})}>
+                    ＋ 広告を追加する
+                  </button>
+                  {ads.map(ad=>(
+                    <div key={ad.id} style={{padding:"8px 0",borderBottom:"1px solid #FFF3C4",fontSize:13}}>
+                      <div style={{fontWeight:700,color:C.text}}>{ad.title}</div>
+                      <div style={{color:C.textSub,fontSize:12}}>{ad.content?.slice(0,30)}...</div>
+                      <button style={{...s.menuItemDanger,padding:"4px 10px",marginTop:4}}
+                        onClick={async()=>{
+                          await supabase.from("ads").delete().eq("id",ad.id);
+                          setAds(p=>p.filter(a=>a.id!==ad.id));
+                        }}>🗑️ 削除</button>
                     </div>
                   ))}
                 </div>
@@ -2172,6 +2239,39 @@ function App() {
           <div style={{height:20}}/>
         </Overlay>
       )}
+
+     {/* 広告編集モーダル（管理者のみ） */}
+     {editingAd && (
+  <Overlay onClose={()=>setEditingAd(null)} scrollable>
+    <div style={s.modalHeader}>
+      <button style={s.closeBtn} onClick={()=>setEditingAd(null)}>✕</button>
+      <span style={s.modalTitle}>広告を追加</span>
+      <button style={s.postBtn} onClick={saveAd}>保存</button>
+    </div>
+    <div style={s.sectionPad}>
+      <div style={s.formLabel}>タイトル</div>
+      <input style={s.formInput} value={editingAd.title}
+        onChange={e=>setEditingAd(p=>({...p,title:e.target.value}))}/>
+    </div>
+    <div style={s.sectionPad}>
+      <div style={s.formLabel}>本文</div>
+      <textarea rows={3} style={{...s.textarea,border:`1.5px solid ${C.border}`,borderRadius:10,background:C.coralPale}}
+        value={editingAd.content}
+        onChange={e=>setEditingAd(p=>({...p,content:e.target.value}))}/>
+    </div>
+    <div style={s.sectionPad}>
+      <div style={s.formLabel}>画像URL（任意）</div>
+      <input style={s.formInput} value={editingAd.image_url}
+        onChange={e=>setEditingAd(p=>({...p,image_url:e.target.value}))}/>
+    </div>
+    <div style={s.sectionPad}>
+      <div style={s.formLabel}>リンクURL（任意）</div>
+      <input style={s.formInput} value={editingAd.link_url}
+        onChange={e=>setEditingAd(p=>({...p,link_url:e.target.value}))}/>
+    </div>
+    <div style={{height:20}}/>
+  </Overlay>
+)}
 
     </div>
   );
