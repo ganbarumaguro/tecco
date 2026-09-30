@@ -417,6 +417,11 @@ function App() {
   const [viewSpot,setViewSpot]       = useState(null); // 表示中のスポットID
   const [showFollowers,setShowFollowers] = useState(false);
   const [showFollowing,setShowFollowing] = useState(false);
+  const [userCount,setUserCount]         = useState(null);
+  useEffect(()=>{supabase.rpc("get_user_count").then(({data,error})=>{
+    if(!error) setUserCount(data);
+  });
+},[]);
 
   // ── 投稿フォーム ──
   const [composing,setComposing]     = useState(false);
@@ -482,10 +487,12 @@ function App() {
   const [editingAd, setEditingAd] = useState(null);
 
   // ── 派生値 ──
-  const isAdmin = profile?.userId === ADMIN_ID;
+  const isAdmin = profile?.isAdmin === true;
   const allKnownUsers = [...users,...posts.map(p=>({userId:p.userId,user:p.user,avatar:p.avatar,area:p.area,bio:""}))].filter((u,i,arr)=>arr.findIndex(x=>x.userId===u.userId)===i);
   const followingList = allKnownUsers.filter(u=>following.includes(u.userId));
   const followerList  = allKnownUsers.filter(u=>followerIds.includes(u.userId));
+  
+
 
 
 // ════════════════════════════════════════
@@ -656,37 +663,24 @@ function App() {
 // ════════════════════════════════════════
 
   // ログイン：usersテーブル確認 → Supabase Auth認証
-  // authに存在しない旧ユーザーは自動でsignUpしてauth_idを紐付ける
   const handleLogin = async () => {
     setLoginError("");
     if (!loginId.trim()||!loginPw.trim()){setLoginError("IDとパスワードを入力してください");return;}
-    if (loginId===ADMIN_ID&&loginPw==="admin"){
-      setProfile({name:"管理者",userId:ADMIN_ID,area:"県央",avatar:"⚙️",bio:"tecco運営アカウント",children:[]});
-      setTab("timeline");setScreen("main");return;
-    }
     const {data,error} = await supabase.from("users").select("*").eq("user_id",loginId).single();
     if (error||!data){setLoginError("このIDは登録されていません");return;}
     if (data.is_frozen){setLoginError("このアカウントは凍結されています");return;}
     const fakeEmail = `${loginId}@tecco.app`;
     const {error:authError} = await supabase.auth.signInWithPassword({email:fakeEmail,password:loginPw});
     if (authError) {
-      if (data.password === loginPw) {
-        // authに存在しない旧ユーザーを再登録
-        const {data:signUpData, error:signUpError} = await supabase.auth.signUp({email:fakeEmail,password:loginPw});
-        if (signUpError){setLoginError("ログインに失敗しました");return;}
-        await supabase.from("users").update({auth_id:signUpData.user.id}).eq("user_id",loginId);
-        setLoginAttempts(0);
-      } else {
-        setLoginError("パスワードが違います");
-        setLoginAttempts(p=>p+1);
-        return;
-      }
-    }
-    setLoginAttempts(0);
-    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")});
+  setLoginError("パスワードが違います");
+  setLoginAttempts(p=>p+1);
+  return;
+}
+setLoginAttempts(0);
+    setProfile({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]"),isAdmin: data.is_admin === true,});
     const savedPins = data.pinned_ids ? JSON.parse(data.pinned_ids) : [];
     setPinnedIds(savedPins);
-    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]")}));
+    localStorage.setItem("tecco_user", JSON.stringify({name:data.name,userId:data.user_id,area:data.area,avatar:data.avatar,bio:data.bio||"",children:JSON.parse(data.children||"[]"), isAdmin: data.is_admin === true,}));
     setTab("timeline");setScreen("main");
   };
 
@@ -701,13 +695,11 @@ function App() {
     const fakeEmail = `${signupId}@tecco.app`;
     const {data:authData, error:authError} = await supabase.auth.signUp({email:fakeEmail,password:signupPw});
     if (authError){setSignupError("登録に失敗しました: " + authError.message);return;}
-    const {error} = await supabase.from("users").insert({
-      user_id:signupId, name:signupName, area:signupArea,
-      avatar:signupAvatar, bio:"", auth_id:authData.user.id
-    });
-    if (error){setSignupError("登録に失敗しました");return;}
-    setProfile({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]});
-    localStorage.setItem("tecco_user", JSON.stringify({name:signupName,userId:signupId,area:signupArea,avatar:signupAvatar,bio:"",children:[]}));
+    const {error} = await supabase.from("users").insert({user_id:signupId, name:signupName, area:signupArea,avatar:signupAvatar, bio:"", auth_id:authData.user.id});
+　　if (error){setSignupError("登録に失敗しました");return;}
+　　const newProfile = {name:signupName, userId:signupId, area:signupArea,avatar:signupAvatar, bio:"", children:[], isAdmin:false};
+　　setProfile(newProfile);
+　　localStorage.setItem("tecco_user", JSON.stringify(newProfile));
     // 新規登録時は公式アカウントを自動フォロー
     await supabase.from("follows").insert({follower_id:signupId, following_id:OFFICIAL_ID});
     setFollowing([OFFICIAL_ID]);
@@ -838,10 +830,11 @@ function App() {
   };
 
   // 投稿削除
-  const deletePost = async id => {
-    await supabase.from("posts").delete().eq("id", id);
-    setPosts(p=>p.filter(x=>x.id!==id));
-  };
+ const deletePost = async id => {
+  const {error} = await supabase.from("posts").delete().eq("id", id);
+  if (error) { alert("削除に失敗しました"); return; }
+  setPosts(p=>p.filter(x=>x.id!==id));
+};
 
   // マイページへの固定（最大3件）。DB の pinned_ids カラムに保存
   const togglePin = async (postId) => {
@@ -858,10 +851,11 @@ function App() {
   };
 
   // コメント削除
-  const deleteComment = async (postId,cid) => {
-    await supabase.from("comments").delete().eq("id", cid);
-    setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
-  };
+ const deleteComment = async (postId,cid) => {
+  const {error} = await supabase.from("comments").delete().eq("id", cid);
+  if (error) { alert("削除に失敗しました"); return; }
+      setPosts(p=>p.map(x=>x.id!==postId?x:{...x,comments:x.comments.filter(c=>c.id!==cid)}));
+};
 
   // コメント投稿（投稿者本人に通知も送る）
   const submitComment = async postId => {
@@ -918,7 +912,11 @@ function App() {
   };
 
   // 掲示板スレッド削除（管理者のみ）
-  const deleteBoard = id => setBoards(p=>p.filter(b=>b.id!==id));
+  const deleteBoard = async id => {
+  const {error} = await supabase.from("boards").delete().eq("id", id);
+  if (error) { alert("削除に失敗しました"); return; }
+  setBoards(p=>p.filter(b=>b.id!==id));
+};
 
 
 // ════════════════════════════════════════
@@ -933,15 +931,17 @@ function App() {
 
   // アカウント凍結（管理者のみ）
   const freezeUser = async uid => {
-    await supabase.from("users").update({is_frozen:true}).eq("user_id",uid);
-    setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
-  };
+  const {error} = await supabase.from("users").update({is_frozen:true}).eq("user_id",uid);
+  if (error) { alert("凍結に失敗しました"); return; }
+  setFrozenIds(p=>{const n=new Set(p);n.add(uid);return n;});
+};
 
   // アカウント凍結解除（管理者のみ）
   const unfreezeUser = async uid => {
-    await supabase.from("users").update({is_frozen:false}).eq("user_id",uid);
-    setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
-  };
+  const {error} = await supabase.from("users").update({is_frozen:false}).eq("user_id",uid);
+  if (error) { alert("凍結解除に失敗しました"); return; }
+  setFrozenIds(p=>{const n=new Set(p);n.delete(uid);return n;});
+};
 
   // フィードバック送信
   const submitFeedback = async () => {
@@ -994,9 +994,10 @@ function App() {
 
   // スポット削除（管理者のみ）
   const deleteSpot = async id => {
-    await supabase.from("spots").delete().eq("id", id);
-    setSpots(p=>p.filter(sp=>sp.id!==id));
-  };
+  const {error} = await supabase.from("spots").delete().eq("id", id);
+  if (error) { alert("削除に失敗しました"); return; }
+  setSpots(p=>p.filter(sp=>sp.id!==id));
+};
 
   // 　広告編集
   const saveAd = async () => {
@@ -1066,33 +1067,39 @@ function App() {
 
   // フォロー・解除の切り替え（フォロー時は相手に通知を送る）
   const toggleFollow = async targetUserId => {
-    if (following.includes(targetUserId)) {
-      await supabase.from("follows").delete().eq("follower_id",profile.userId).eq("following_id",targetUserId);
-      setFollowing(p=>p.filter(id=>id!==targetUserId));
-    } else {
-      await supabase.from("follows").insert({follower_id:profile.userId, following_id:targetUserId});
-      await supabase.from("notifications").insert({
-        user_id:targetUserId, type:"follow", from_user:profile.name,
-        from_avatar:profile.avatar, post_id:null,
-        message:`${profile.name}さんがあなたをフォローしました`,
-      });
-      setNewFollowers(prev=>prev.includes(targetUserId)?prev:[...prev,targetUserId]);
-      setSeenNotif(false);
-      setFollowing(p=>[...p,targetUserId]);
-    }
-  };
+  if (following.includes(targetUserId)) {
+    const {error} = await supabase.from("follows").delete()
+      .eq("follower_id",profile.userId).eq("following_id",targetUserId);
+    if (error) { alert("フォロー解除に失敗しました"); return; }
+    setFollowing(p=>p.filter(id=>id!==targetUserId));
+  } else {
+    const {error} = await supabase.from("follows").insert({follower_id:profile.userId, following_id:targetUserId});
+    if (error) { alert("フォローに失敗しました"); return; }
+    await supabase.from("notifications").insert({
+      user_id:targetUserId, type:"follow", from_user:profile.name,
+      from_avatar:profile.avatar, post_id:null,
+      message:`${profile.name}さんがあなたをフォローしました`,
+    });
+    setNewFollowers(prev=>prev.includes(targetUserId)?prev:[...prev,targetUserId]);
+    setSeenNotif(false);
+    setFollowing(p=>[...p,targetUserId]);
+  }
+};
 
   // ブロック・解除の切り替え（ブロック時はフォローも解除する）
-  const toggleBlock = async userId => {
-    if (blockedIds.includes(userId)) {
-      await supabase.from("blocks").delete().eq("blocker_id",profile.userId).eq("blocked_id",userId);
-      setBlockedIds(p=>p.filter(id=>id!==userId));
-    } else {
-      await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
-      setBlockedIds(p=>[...p,userId]);
-      if (following.includes(userId)) await toggleFollow(userId);
-    }
-  };
+ const toggleBlock = async userId => {
+  if (blockedIds.includes(userId)) {
+    const {error} = await supabase.from("blocks").delete()
+      .eq("blocker_id",profile.userId).eq("blocked_id",userId);
+    if (error) { alert("ブロック解除に失敗しました"); return; }
+    setBlockedIds(p=>p.filter(id=>id!==userId));
+  } else {
+    const {error} = await supabase.from("blocks").insert({blocker_id:profile.userId, blocked_id:userId});
+    if (error) { alert("ブロックに失敗しました"); return; }
+    setBlockedIds(p=>[...p,userId]);
+    if (following.includes(userId)) await toggleFollow(userId);
+  }
+};
 
 
 // ════════════════════════════════════════
@@ -1357,7 +1364,7 @@ function App() {
     const isFrozen    = frozenIds.has(viewUser.userId);
     const isFollowing = following.includes(viewUser.userId);
     const isBlocked   = blockedIds.includes(viewUser.userId);
-    const userPosts   = posts.filter(p=>p.userId===viewUser.userId&&p.scope!=="wall");
+    const userPosts = posts.filter(p =>p.userId===viewUser.userId &&p.scope!=="wall" && (p.scope!=="followers" || isFollowing || p.userId===profile?.userId));
     return (
       <div style={s.root}>
         <header style={s.header}><div style={s.headerInner}>
@@ -1572,10 +1579,33 @@ function App() {
             <button style={{...s.boardCatBtn,background:timelineFilter==="all"?C.coralPale:C.white,borderColor:timelineFilter==="all"?C.coral:C.border,color:timelineFilter==="all"?C.coral:C.textSub}}
               onClick={()=>setTimelineFilter("all")}>🌍 全員</button>
             <button style={{...s.boardCatBtn,background:timelineFilter==="following"?C.coralPale:C.white,borderColor:timelineFilter==="following"?C.coral:C.border,color:timelineFilter==="following"?C.coral:C.textSub}}
-              onClick={()=>setTimelineFilter("following")}>👥 フォロー中</button>
+              onClick={()=>setTimelineFilter("following")}>🔀 フォロー中</button>
           </div>
+        {userCount!==null&&(
+  <div style={{alignSelf:"flex-end",marginLeft:"auto",width:"fit-content",fontSize:12,fontWeight:600,color:"#333",background:C.coralPale,borderRadius:20,padding:"6px 12px",whiteSpace:"nowrap"}}>
+    👫 現在 {userCount}人参加中
+  </div>
+)}
+  </div>
+)}
+      
+      {tab==="area"&&!tagSearch&&(
+        <div style={s.filterBar}>
+          <select style={s.select} value={filterArea} onChange={e=>setFilterArea(e.target.value)}>
+            {FILTER_AREAS.map(a=><option key={a}>{a}</option>)}
+          </select>
+          <div style={s.hint}>県央／県北／県南／沿岸／県外でしぼり込み</div>
         </div>
       )}
+      {tab==="age"&&!tagSearch&&(
+        <div style={s.filterBar}>
+          <select style={s.select} value={filterAge} onChange={e=>setFilterAge(e.target.value)}>
+            {AGE_GROUPS.map(a=><option key={a}>{a}</option>)}
+          </select>
+          <div style={s.hint}>妊娠中〜高校生まで選べます</div>
+        </div>
+      )}
+
       {tab==="area"&&!tagSearch&&(
         <div style={s.filterBar}>
           <select style={s.select} value={filterArea} onChange={e=>setFilterArea(e.target.value)}>
@@ -1604,7 +1634,7 @@ function App() {
             <React.Fragment key={p.id}>
             <PostCard {...pcp(p)}/>
             {ads.length>0 && (i+1)%15===0 && (()=>{
-            const ad = ads[(Math.floor(i/5)) % ads.length];
+            const ad = ads[(Math.floor(i/15)) % ads.length];
             return (
             <div style={{background:"#FFF8E6",borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid #FFE49A`}}>
             <div style={{fontSize:10,color:"#B5A800",fontWeight:700,marginBottom:6}}>PR</div>
@@ -1716,7 +1746,6 @@ function App() {
         {/* ── 通知タブ ── */}
         {tab==="notif" && (
           <>
-            <div style={s.secTitle}>🔔 通知</div>
             {notifications.length===0 && <div style={s.emptyMsg}>まだ通知はありません</div>}
             {notifications.map(n=>(
               <div key={n.id} style={{...s.userListItem,background:C.white,borderRadius:12,padding:"12px 14px",marginBottom:8,border:`1px solid ${C.border}`,cursor:"pointer"}}
@@ -1843,7 +1872,7 @@ function App() {
             <div style={{...s.secTitle,marginTop:20}}>💌 要望・フィードバック</div>
             <div style={s.reportSection}>
               <div style={s.reportTitle}>teccoへのご意見・改善要望</div>
-              <textarea style={s.feedbackArea} rows={4} placeholder="機能のご要望、使いにくかった点など、なんでもお気軽にどうぞ"
+              <textarea style={s.feedbackArea} rows={4} placeholder="いただいたフィードバックは公式サイトに回答を添えて掲載していきます。なんでもお気軽にどうぞ！"
                 value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}/>
               <button style={s.feedbackBtn} onClick={submitFeedback}>送信する</button>
               {feedbackSent && <div style={s.successMsg}>✅ 送信しました！ありがとうございます。</div>}
@@ -1853,8 +1882,8 @@ function App() {
             <div style={{...s.secTitle,marginTop:8}}>💝 teccoを応援する</div>
             <div style={s.donateSection}>
               <div style={s.donateTitle}>teccoを応援する</div>
-              <div style={s.donateDesc}>teccoは岩手のパパママのために<br/>個人で運営しています。<br/>ご支援いただけると嬉しいです🍀</div>
-              <button style={s.donateBtn} onClick={()=>alert("準備中です。ありがとうございます！💝")}>💝 寄付する</button>
+              <div style={s.donateDesc}>teccoは岩手のパパママのために個人で運営しています。</div>
+              <button style={s.donateBtn} onClick={()=>alert("準備中です。ありがとうございます！💝")}>支援する</button>
             </div>
 
             {/* 管理者パネル */}
