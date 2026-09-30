@@ -407,6 +407,7 @@ function App() {
   const [lastSeenTimeline,setLastSeenTimeline] = useState(Date.now());
   const [lastSeenBoard,setLastSeenBoard]       = useState(Date.now());
   const [,setNewFollowers]                     = useState([]);
+   // eslint-disable-next-line no-unused-vars 通知既読は後で実装しなきゃいけない
   const [seenNotif,setSeenNotif]               = useState(false);
 
   // ── UI開閉状態 ──
